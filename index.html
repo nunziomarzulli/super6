@@ -448,7 +448,6 @@ let state=emptyState();
 function saveState(){
   try{
     localStorage.setItem(KEY, JSON.stringify(state));
-
     return true;
   }catch(e){
     msg('msgImport','Errore salvataggio locale: memoria browser piena.',true);
