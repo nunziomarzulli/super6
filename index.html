@@ -2087,23 +2087,24 @@ window.saveState = function() {
 
 // carica online all'apertura
 async function caricaOnline() {
-  const snap = await getDoc(statoRef);
-  if (snap.exists()) {
-    const online = snap.data().data;
-    if (online) {
-      window.state = online;
-      state = online;
-      localStorage.setItem(KEY, JSON.stringify(state));
-      render();
-      console.log("Dati caricati da Firebase");
+  onSnapshot(statoRef, (snap) => {
+    if (snap.exists()) {
+      const online = snap.data().data;
+      if (online) {
+        window.state = online;
+        state = online;
+        localStorage.setItem(KEY, JSON.stringify(state));
+        render();
+        console.log("🔥 Sync live da Firebase");
+      }
+    } else {
+      setDoc(statoRef, {
+        data: state,
+        updatedAt: new Date()
+      });
+      console.log("Primo salvataggio online creato");
     }
-  } else {
-    await setDoc(statoRef, {
-      data: state,
-      updatedAt: new Date()
-    });
-    console.log("Primo salvataggio online creato");
-  }
+  });
 }
 
 caricaOnline();
