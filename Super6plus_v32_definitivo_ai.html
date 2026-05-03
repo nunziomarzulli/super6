@@ -1,0 +1,2061 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super6plus v32 Definitivo AI</title>
+  <style>
+    :root{
+      --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
+      --text:#eef4ff; --muted:#a9b9d8; --blue:#67c0ff; --green:#66db6b; --red:#ef6c63; --yellow:#f1ce66; --violet:#b59cff;
+      --soft:#dceac9; --soft2:#eef6e4; --soft3:#a1c978; --soft4:#4f9a3d; --soft5:#eff4eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#031126;color:var(--text);font-family:Arial,Helvetica,sans-serif}
+    .wrap{max-width:1200px;margin:0 auto;padding:20px}
+    h1,h2,h3,p{margin:0 0 10px}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:16px}
+    .g2{grid-template-columns:repeat(2,1fr)}
+    .g3{grid-template-columns:repeat(3,1fr)}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+    .stat{background:var(--panel2);border-radius:14px;padding:14px}
+    .stat .n{font-size:34px;font-weight:700}
+    button,.btn{border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
+    .btn-blue{background:var(--blue);color:#07203e}
+    .btn-green{background:var(--green);color:#072d10}
+    .btn-red{background:var(--red);color:white}
+    .btn-grey{background:#66768f;color:white}
+    .btn-yellow{background:var(--yellow);color:#342500}
+    .btn-violet{background:var(--violet);color:#24193f}
+    input,select,textarea{width:100%;background:#0a1733;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row > *{flex:1}
+    .nums{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+    .msg{margin-top:10px;font-size:14px}
+    .err{color:#ff9f9f}.ok{color:#9df0a4}
+    .list{display:grid;gap:10px;max-height:360px;overflow:auto}
+    .item{background:var(--panel2);border-radius:14px;padding:12px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#27477b;color:#dce9ff;font-size:12px}
+    .sep{height:1px;background:var(--line);margin:16px 0}
+    .small{font-size:13px}
+    .mono{font-variant-numeric:tabular-nums}
+    .tag{display:inline-block;font-size:11px;padding:3px 7px;border-radius:999px;background:#21375f;margin-left:6px}
+
+    .sisal-wrap{background:var(--soft);color:#1d2e1b;border-radius:18px;border:1px solid #c7d7b2;padding:18px}
+    .sisal-title{font-size:28px;font-weight:800;color:#12220f}
+    .sisal-sub{color:#476247;font-weight:700}
+    .sys-chip-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .sys-chip{border:2px solid #6fb144;background:#fff;color:#2f6120;border-radius:999px;padding:10px 16px;font-weight:800}
+    .sys-chip.active{background:#6fb144;color:#fff}
+    .range-strip{height:10px;background:#d9e8c9;border-radius:999px;overflow:hidden;margin:8px 0 14px}
+    .range-bar{height:100%;background:#7ec34f;width:0;border-radius:999px;transition:width .2s}
+    .sisal-board{background:#edf5e7;border:1px solid #d7e6cc;border-radius:18px;padding:18px}
+    .sisal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .sisal-tabs{display:flex;gap:16px;font-weight:800}
+    .sisal-tab{padding:0 2px 6px;border-bottom:3px solid transparent;color:#58704f}
+    .sisal-tab.active{border-color:#6fb144;color:#1b2b18}
+    .sisal-range{font-weight:800;color:#1f351a}
+    .sisal-pills{display:flex;gap:8px;flex-wrap:wrap}
+    .sisal-pill{background:#fff;border:2px solid #7cb14a;color:#2d5a22;border-radius:999px;padding:8px 14px;font-weight:800}
+    .sisal-pill.active{background:#6fb144;color:#fff}
+    .num-grid90{display:grid;grid-template-columns:repeat(15,1fr);gap:8px;margin-top:14px}
+    .num90{background:#fff;border:0;border-radius:10px;padding:10px 0;font-weight:800;color:#243022;box-shadow:inset 0 0 0 1px #d7e6cc}
+    .num90.active{background:#6fb144;color:#fff;box-shadow:none}
+    .sisal-bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .soft-box{background:#f8fbf5;border:1px solid #dfe9d5;border-radius:14px;padding:14px;color:#20301d}
+    .ghost-btn{background:transparent;border:2px solid #8cb567;color:#3b6129}
+    .confirm-btn{background:#8bc460;color:#fff;padding:14px 22px;border-radius:14px;min-width:160px}
+    .confirm-btn:disabled{opacity:.45;cursor:not-allowed}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    .kpi{background:#f8fbf5;border:1px solid #dfe9d5;border-radius:14px;padding:12px}
+    .kpi .v{font-size:24px;font-weight:800;color:#23311f}
+    .kpi .l{font-size:12px;color:#5a7054}
+
+    .abs-box{background:#0a1836;border:1px solid #2c4370;border-radius:16px;padding:14px}
+    .pillline{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .mini-pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#1d335c;color:#dbe7ff;font-size:12px;font-weight:700}
+    .report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .report-card{background:#0e2147;border:1px solid #26406d;border-radius:14px;padding:12px}
+    .report-card .big{font-size:22px;font-weight:800}
+    .nums-hitline{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .ball{width:40px;height:40px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+    .ball.hit{background:#49b64d;color:#fff}
+    .ball.miss{background:#e8edf4;color:#22304f}
+    .ball.draw{background:#67c0ff;color:#07203e}
+    .ball.dim{background:#dbe3ee;color:#6d7c95}
+    .ball.jolly{background:#f1ce66;color:#342500}
+    .ball.superstar{background:#b59cff;color:#24193f}
+    .inline-extra{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+    .mini-extra-label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.3px}
+    .archive-box{border:1px solid #29446f;background:#0a1836}
+    .archive-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .archive-item-compact{padding:10px 12px}
+    .archive-item-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .archive-item-left{min-width:0}
+    .archive-item-title{font-weight:800;color:var(--text);font-size:15px;line-height:1.2}
+    .archive-item-date{font-size:12px;color:var(--muted);margin-top:2px}
+    .archive-delete-btn{padding:6px 10px;border-radius:10px;font-size:12px;line-height:1;background:var(--red);color:#fff;flex:0 0 auto}
+    .nums-hitline.compact{gap:6px;margin-top:8px}
+    .ball.compact{width:30px;height:30px;font-size:13px}
+
+    @media (max-width:900px){
+      .g2,.g3,.nums,.num-grid90,.kpis{grid-template-columns:1fr}
+      .wrap{padding:12px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Super6plus v32 Definitivo AI</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
+
+  <div class="grid g3" style="margin-top:16px">
+    <div class="stat"><div class="muted">Estrazioni</div><div class="n mono" id="s_draws">0</div></div>
+    <div class="stat"><div class="muted">Ultima</div><div class="n mono" id="s_last" style="font-size:22px">-</div></div>
+    <div class="stat"><div class="muted">Giocate salvate</div><div class="n mono" id="s_played">0</div></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h2>Importa storico TXT</h2>
+      <p class="muted small">Formato atteso: YYYY-MM-DD + 6 numeri + Jolly + SuperStar</p>
+      <div class="row" style="margin-top:10px"><input type="file" id="txtFile" accept=".txt" /></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn-blue" id="btnImportTxt">Importa storico</button>
+        <button class="btn-grey" id="btnExportJson">Esporta backup JSON</button>
+      </div>
+      <div class="row" style="margin-top:10px"><input type="file" id="jsonFile" accept=".json" /></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn-grey" id="btnImportJson">Importa backup JSON</button>
+        <button class="btn-red" id="btnResetAll">Azzera tutto</button>
+      </div>
+      <div class="msg" id="msgImport"></div>
+    </div>
+
+    <div class="card">
+      <h2>Nuova estrazione uscita</h2>
+      <div class="row">
+        <div><div class="muted small">Concorso</div><input id="drawContest" /></div>
+        <div><div class="muted small">Data</div><input id="drawDate" type="date" /></div>
+        <div><div class="muted small">Jolly</div><input id="drawJolly" /></div>
+        <div><div class="muted small">SuperStar</div><input id="drawSuper" /></div>
+      </div>
+      <div class="muted small" style="margin-top:10px">6 numeri estratti</div>
+      <div class="nums" style="margin-top:8px">
+        <input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum">
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn-green" id="btnSaveDraw">Salva estrazione</button>
+        <button class="btn-grey" id="btnFillNext">Precompila prossimo concorso</button>
+      </div>
+      <div class="msg" id="msgDraw"></div>
+    </div>
+  </div>
+
+  
+  <div class="card" style="margin-top:16px">
+    <h2>Sestine pronte da giocare</h2>
+    <div class="grid g2">
+      <div class="grid" style="gap:10px">
+        <div class="row">
+          <div>
+            <div class="muted small">Sestine finali da giocare</div>
+            <select id="f_results">
+              <option value="8">8</option>
+              <option value="12">12</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div><div class="muted small">Concorso da giocare</div><input id="playContest"></div>
+        </div>
+        <div class="row">
+          <div><div class="muted small">Data concorso</div><input id="playDate" type="date"></div>
+          <div class="item" style="background:#0a1836;border:1px solid #29446f">
+            <div><strong>Modalità automatica intelligente</strong></div>
+            <div class="small" style="margin-top:6px">Il sistema analizza storico, trend recenti, numeri mancanti, coppie ricorrenti, distribuzione e tuoi errori storici. Decide lui se essere più prudente o più aggressivo.</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn-blue" id="btnGenerate">Genera sestine</button>
+          <button class="btn-yellow" id="btnMarkPlayed">Segna tutte come giocate</button>
+          <button class="btn-grey" id="btnUseNext">Usa prossimo concorso</button>
+          <button class="btn-grey" id="btnToggleSystem">Crea sistema avanzato</button>
+        </div>
+        <div class="msg" id="msgGen"></div>
+      </div>
+      <div class="grid" style="gap:10px">
+        <div class="item" style="background:#0a1836;border:1px solid #29446f">
+          <div><strong>Come lavora il motore</strong></div>
+          <div class="small" style="margin-top:8px">Non devi più toccare filtri tecnici. Il motore calcola da solo i parametri migliori in base all'andamento recente delle estrazioni e al tuo storico.</div>
+        </div>
+        <div class="item" style="background:#0a1836;border:1px solid #29446f">
+          <div><strong>Storico preservato</strong></div>
+          <div class="small" style="margin-top:8px">Il file continua a usare la stessa chiave di salvataggio locale e gli stessi import/export backup JSON, così non perdi il lavoro già registrato quando sostituisci il file.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="autoAdvancedFilters" style="display:none">
+      <input id="f_pool" value="25000">
+      <input id="f_sumMin" value="110">
+      <input id="f_sumMax" value="260">
+      <input id="f_sameDec" value="3">
+      <input id="f_consec" value="2">
+      <input id="f_sameEnd" value="2">
+      <input id="f_minDecs" value="4">
+      <input id="f_lowMin" value="2">
+      <input id="f_lowMax" value="4">
+      <select id="f_zoneMode">
+        <option value="OFF">OFF</option>
+        <option value="MORBIDO" selected>MORBIDO</option>
+        <option value="RIGIDO">RIGIDO</option>
+      </select>
+      <input id="f_zoneMax" value="2">
+      <input id="f_zoneMinCovered" value="4">
+      <input id="f_zoneRecent" value="18">
+      <select id="f_shiftLearn"><option value="ON" selected>ON</option><option value="OFF">OFF</option></select>
+      <input id="f_shiftBiasWeight" value="12">
+      <input id="f_fuzzyWeight" value="2">
+      <input id="f_imperfectRate" value="20">
+      <input id="f_ensembleDepth" value="3">
+      <input id="f_consensusCount" value="12">
+      <select id="f_mirrorMode"><option value="ON" selected>ON</option><option value="OFF">OFF</option></select>
+      <select id="f_personalAvoid"><option value="ON" selected>ON</option><option value="OFF">OFF</option></select>
+    </div>
+
+    <div class="sep"></div>
+    <div class="muted small" style="margin-top:8px">Quando premi Genera, il sistema ti propone da 8 fino a 50 sestine finali già selezionate dal motore.</div>
+    <div id="generatedList" class="list" style="margin-top:12px"></div>
+    <div class="sep"></div>
+    <div class="card" style="background:#081730;border-color:#27426d">
+      <h3>Report Motore</h3>
+      <div id="absoluteReport" class="list"></div>
+    </div>
+  </div>
+
+  <div class="card" id="mooni_system_box" style="margin-top:16px; display:none;">
+    <h2>Nuovi sistemi in stile Sisal</h2>
+    <p class="muted small">Area rifatta come negli screenshot: scegli il tipo di sistema, selezioni i numeri e poi copi solo la lista finale da ricreare manualmente su Sisal come sistema ridotto uguale.</p>
+
+    <div class="sisal-wrap" style="margin-top:14px">
+      <div class="sisal-sub" id="smartModeCaption">Sistema Integrale</div>
+      <div class="sisal-title" id="smartRangeTitle">Scegli da 6 a 12 numeri</div>
+      <div class="range-strip"><div class="range-bar" id="smartRangeBar"></div></div>
+
+      <div class="sys-chip-row" id="smartModeChips">
+        <button class="sys-chip active" data-mode="INTEGRALE">INTEGRALE</button>
+        <button class="sys-chip" data-mode="G5">G5</button>
+        <button class="sys-chip" data-mode="G4">G4</button>
+        <button class="sys-chip" data-mode="G3">G3</button>
+      </div>
+
+      <div class="sisal-board" style="margin-top:16px">
+        <div class="sisal-head">
+          <div class="sisal-tabs">
+            <div class="sisal-tab active">Numeri</div>
+            <div class="sisal-tab">SuperStar</div>
+          </div>
+          <div class="sisal-range" id="smartRangeText">Selezionati 0 numeri</div>
+        </div>
+
+        <div class="sisal-pills" style="margin-top:14px">
+          <button class="sisal-pill active" data-mode-pill="INTEGRALE">INTEGRALE</button>
+          <button class="sisal-pill" data-mode-pill="G5">G5</button>
+          <button class="sisal-pill" data-mode-pill="G4">G4</button>
+          <button class="sisal-pill" data-mode-pill="G3">G3</button>
+        </div>
+
+        <div class="num-grid90" id="smartNumberGrid"></div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="v mono" id="kpiSelected">0</div><div class="l">Numeri scelti</div></div>
+          <div class="kpi"><div class="v mono" id="kpiRows">0</div><div class="l">Combinazioni teoriche</div></div>
+          <div class="kpi"><div class="v mono" id="kpiTarget">6</div><div class="l">Sistema scelto</div></div>
+          <div class="kpi"><div class="v mono" id="kpiCost">0,00 €</div><div class="l">Righe integrali 6/6</div></div>
+        </div>
+
+        <div class="sisal-bottom">
+          <button class="ghost-btn" id="btnSmartClear">Cancella tutti i numeri</button>
+          <div class="soft-box" id="smartHintBox">
+            Devi selezionare almeno 6 numeri.
+          </div>
+          <div class="soft-box" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:280px">
+            <div style="font-weight:800">Quanti numeri generare</div>
+            <select id="smartAutoCount" style="max-width:120px;background:#fff;color:#20301d;border:1px solid #dfe9d5">
+            </select>
+            <button class="ghost-btn" id="btnSmartAutoPick">Genera numeri sistema</button>
+          </div>
+          <button class="confirm-btn" id="btnSmartBuild" disabled>Conferma numeri</button>
+        </div>
+
+        <div class="msg" id="msgSystem"></div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="grid g2">
+      <div>
+        <div class="row">
+          <button class="btn-grey" id="btnSmartAutoPick2">Genera numeri sistema</button>
+          <button class="btn-grey" id="btnCopySystemNumbers">Copia numeri sistema</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn-grey" id="btnCopySystemLine">Copia riga pronta</button>
+          <button class="btn-grey" id="btnResetSmartSystem">Pulisci sistema creato</button>
+        </div>
+      </div>
+      <div>
+        <div class="muted small">Riepilogo sistema da riportare su Sisal</div>
+        <div id="systemSummary" class="item" style="margin-top:8px">Nessun sistema creato.</div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+    <div id="systemList" class="list"></div>
+  <textarea id="systemCopyBox" rows="4" readonly style="margin-top:12px;background:#08142d;color:#eef4ff;border:1px solid #243b68;border-radius:12px;padding:12px" placeholder="Qui comparirà la riga numeri pronta da copiare"></textarea>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Inserimento manuale giocate storiche</h2>
+    <div class="small muted">Qui puoi scrivere o incollare a mano le sestine di concorsi passati. Una riga per giocata, con 6 numeri oppure 6 numeri + Jolly + SuperStar.</div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="grid" style="gap:10px">
+        <div class="row">
+          <div><div class="muted small">Concorso</div><input id="manualContest" /></div>
+          <div><div class="muted small">Data giocata o estrazione</div><input id="manualDate" type="date" /></div>
+        </div>
+        <div>
+          <div class="muted small">Incolla le sestine</div>
+          <textarea id="manualPlaysBox" rows="10" placeholder="Esempio:
+3 5 20 27 35 66
+3 5 20 27 35 66 12 45
+1, 12, 18, 41, 56, 75, 33, 9"></textarea>
+        </div>
+        <div class="row">
+          <button class="btn-blue" id="btnSaveManualPlays">Salva giocate storiche</button>
+          <button class="btn-grey" id="btnManualUseSelectedDraw">Usa concorso selezionato</button>
+          <button class="btn-red" id="btnClearManualPlays">Pulisci riquadro</button>
+        </div>
+        <div class="msg" id="msgManualPlays"></div>
+      </div>
+      <div class="grid" style="gap:10px">
+        <div class="item">
+          <strong>Come scriverle</strong>
+          <div class="small" style="margin-top:8px">Una giocata per riga.</div>
+          <div class="small" style="margin-top:4px">Sono accettati spazi, virgole, punto e virgola, trattini e barre. Se inserisci 8 numeri, gli ultimi due sono Jolly e SuperStar.</div>
+          <div class="small" style="margin-top:4px">Le righe non valide vengono saltate e segnalate.</div>
+        </div>
+        <div class="item">
+          <strong>Cosa succede dopo</strong>
+          <div class="small" style="margin-top:8px">Le giocate entrano subito in Sestine giocate.</div>
+          <div class="small" style="margin-top:4px">Se l'estrazione di quel concorso è già presente, i numeri presi vengono colorati subito in verde.</div>
+          <div class="small" style="margin-top:4px">Da lì puoi archiviare solo le righe con almeno 1 numero preso.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h2>Sestine giocate</h2>
+      <div class="small muted">Quando salvi un'estrazione, il programma confronta subito le giocate dello stesso concorso e colora in verde i numeri presi.</div>
+      <div id="playedList" class="list" style="margin-top:10px"></div>
+    </div>
+    <div class="card archive-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Archivio giocate con numeri presi</h2>
+        <button class="btn-grey" id="btnExportArchivedHits">Scarica archivio</button>
+      </div>
+      <div class="small muted">Qui finiscono solo le sestine archiviate con almeno 1 numero preso.</div>
+      <div id="archivedHitsList" class="list" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Analisi giocate contro estrazione</h2>
+    <div class="row">
+      <select id="analysisContest"></select>
+      <button class="btn-blue" id="btnAnalyzeOne">Analizza concorso selezionato</button>
+      <button class="btn-grey" id="btnAnalyzeAll">Analizza tutte le estrazioni</button>
+    </div>
+    <div class="msg" id="msgAnalysis"></div>
+    <div class="sep"></div>
+    <div id="analysisList" class="list"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Archivio estrazioni</h2>
+    <div id="drawsList" class="list"></div>
+  </div>
+</div>
+
+<script>
+const KEY='superenalotto_v25_click_play';
+const LEGACY_KEYS=['superenalotto_v22_sisal_copy_numbers'];
+
+const SMART_MODES = {
+  INTEGRALE:{label:'Sistema Integrale', min:6, max:12, target:6},
+  G5:{label:'Sistema Ridotto G5', min:10, max:12, target:5},
+  G4:{label:'Sistema Ridotto G4', min:13, max:19, target:4},
+  G3:{label:'Sistema Ridotto G3', min:20, max:33, target:3}
+};
+
+function cleanupOldKeys(){
+  try{
+    const prefixes=['superenalotto_privato_','superenalotto_v'];
+    const keep=[KEY, ...LEGACY_KEYS];
+    const del=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(!k) continue;
+      if(prefixes.some(p=>k.startsWith(p)) && !keep.includes(k)) del.push(k);
+    }
+    del.forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function emptyState(){
+  return {
+    draws:[],
+    played:[],
+    generated:[],
+    archivedHits:[],
+    currentSystem:null,
+    smartPicker:{mode:'INTEGRALE', selected:[]},
+    settings:{pool:25000,results:8,sumMin:110,sumMax:260,sameDec:3,consec:2,sameEnd:2,minDecs:4,lowMin:2,lowMax:4,zoneMode:'MORBIDO',zoneMax:2,zoneMinCovered:4,zoneRecent:18,shiftLearn:'ON',shiftBiasWeight:12,fuzzyWeight:2,ensembleDepth:3,mirrorMode:'ON',consensusCount:12,personalAvoid:'ON',imperfectRate:20},
+    absoluteReport:null,
+    playContest:'',
+    playDate:'',
+    latestCheckedContest:'',
+    learning:{
+      numberScore:{},
+      pairScore:{},
+      nearMissScore:{},
+      patternScore:{lowHigh:{}, parity:{}, sumRange:{}},
+      monthlyMemory:{},
+      antiBias:{},
+      historyDepth:0,
+      lastUpdate:null
+    }
+  };
+}
+let state=emptyState();
+function saveState(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify(state));
+    return true;
+  }catch(e){
+    msg('msgImport','Errore salvataggio locale: memoria browser piena.',true);
+    return false;
+  }
+}
+function loadState(){
+  cleanupOldKeys();
+  try{
+    let raw=localStorage.getItem(KEY);
+    if(!raw){
+      for(const legacyKey of LEGACY_KEYS){
+        const legacyRaw=localStorage.getItem(legacyKey);
+        if(legacyRaw){ raw=legacyRaw; break; }
+      }
+    }
+    if(raw){
+      state=Object.assign(emptyState(), JSON.parse(raw));
+      if(!Array.isArray(state.archivedHits)) state.archivedHits=[];
+      migrateStateForExtras();
+      try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+    }
+  }catch(e){ state=emptyState(); }
+}
+function resetState(){ state=emptyState(); localStorage.removeItem(KEY); render(); }
+function msg(id,text,isErr=false){
+  const el=document.getElementById(id); el.textContent=text||''; el.className='msg '+(text?(isErr?'err':'ok'):'');
+}
+function byId(id){ return document.getElementById(id); }
+
+function randomInt90(){ return 1+Math.floor(Math.random()*90); }
+function buildAutoExtras(numbers){
+  const baseSet=new Set((numbers||[]).map(Number).filter(Number.isInteger));
+  const available=[];
+  for(let n=1;n<=90;n++) if(!baseSet.has(n)) available.push(n);
+  const jolly = available.length ? available[Math.floor(Math.random()*available.length)] : randomInt90();
+  const superstar = randomInt90();
+  return {jolly, superstar};
+}
+function ensurePlayExtras(play){
+  if(!play) return play;
+  if(!Number.isInteger(play.jolly) || play.jolly<1 || play.jolly>90){
+    const ex=buildAutoExtras(play.numbers||[]);
+    play.jolly=ex.jolly;
+  }
+  if(!Number.isInteger(play.superstar) || play.superstar<1 || play.superstar>90){
+    const ex=buildAutoExtras(play.numbers||[]);
+    play.superstar=ex.superstar;
+  }
+  return play;
+}
+function ensureArchivedExtras(item){
+  if(!item) return item;
+  if(!Number.isInteger(item.jolly) || item.jolly<1 || item.jolly>90 || !Number.isInteger(item.superstar) || item.superstar<1 || item.superstar>90){
+    const ex=buildAutoExtras(item.numbers||[]);
+    if(!Number.isInteger(item.jolly) || item.jolly<1 || item.jolly>90) item.jolly=ex.jolly;
+    if(!Number.isInteger(item.superstar) || item.superstar<1 || item.superstar>90) item.superstar=ex.superstar;
+  }
+  if(!Array.isArray(item.hits)) item.hits=[];
+  item.hitsCount = Array.isArray(item.hits) ? item.hits.length : 0;
+  item.jollyHit = !!item.jollyHit;
+  item.superstarHit = !!item.superstarHit;
+  return item;
+}
+function migrateStateForExtras(){
+  (state.played||[]).forEach(ensurePlayExtras);
+  (state.generated||[]).forEach(g=>{
+    if(!g) return;
+    const ex=buildAutoExtras(g.numbers||[]);
+    if(!Number.isInteger(g.jolly) || g.jolly<1 || g.jolly>90) g.jolly=ex.jolly;
+    if(!Number.isInteger(g.superstar) || g.superstar<1 || g.superstar>90) g.superstar=ex.superstar;
+  });
+  (state.archivedHits||[]).forEach(ensureArchivedExtras);
+}
+function getPlayOutcome(play, draw){
+  const drawRef = draw || getDrawByContest(play?.contest);
+  if(!play || !drawRef || !Array.isArray(play.numbers)) return {hits:[], jollyHit:false, superstarHit:false};
+  const hits = play.numbers.filter(n=>drawRef.numbers.includes(n));
+  const jollyHit = Number.isInteger(play.jolly) && Number(play.jolly)===Number(drawRef.jolly);
+  const superstarHit = Number.isInteger(play.superstar) && Number(play.superstar)===Number(drawRef.superstar);
+  return {hits, jollyHit, superstarHit};
+}
+function renderExtraBalls(play, draw, compact=false){
+  const drawRef = draw || getDrawByContest(play?.contest);
+  const baseJ='ball jolly'+(compact?' compact':'');
+  const baseS='ball superstar'+(compact?' compact':'');
+  const jCls = baseJ + ((drawRef && Number(play?.jolly)===Number(drawRef.jolly)) ? ' hit' : '');
+  const sCls = baseS + ((drawRef && Number(play?.superstar)===Number(drawRef.superstar)) ? ' hit' : '');
+  return '<div class="inline-extra"><span class="mini-extra-label">J</span><span class="'+jCls+'">'+(play?.jolly ?? '-')+'</span><span class="mini-extra-label">S</span><span class="'+sCls+'">'+(play?.superstar ?? '-')+'</span></div>';
+}
+function sortNums(nums){ return [...nums].sort((a,b)=>a-b); }
+function validSix(nums){ return nums.length===6 && new Set(nums).size===6 && nums.every(n=>n>=1&&n<=90); }
+function keyOf(nums){ return sortNums(nums).join('-'); }
+function numsFromInputs(selector){
+  return [...document.querySelectorAll(selector)].map(i=>parseInt(i.value,10)).filter(n=>Number.isInteger(n)&&n>=1&&n<=90);
+}
+function parseTxtLine(line){
+  const parts=line.trim().split(/\s+/).filter(Boolean);
+  if(parts.length<9) return null;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) return null;
+  const nums=parts.slice(1,7).map(Number);
+  const j=Number(parts[7]); const s=Number(parts[8]);
+  if(!validSix(nums)) return null;
+  if(!(Number.isInteger(j)&&j>=1&&j<=90)) return null;
+  if(!(Number.isInteger(s)&&s>=1&&s<=90)) return null;
+  return {date:parts[0],numbers:sortNums(nums),jolly:j,superstar:s};
+}
+function importTxt(text){
+  const rows=[]; const lines=text.split(/\r?\n/);
+  for(const line of lines){ const p=parseTxtLine(line); if(p) rows.push(p); }
+  rows.sort((a,b)=>a.date===b.date?0:(a.date>b.date?-1:1));
+  const total=rows.length;
+  state.draws=rows.map((r,idx)=>({contest:String(total-idx), date:r.date, numbers:r.numbers, jolly:r.jolly, superstar:r.superstar, origin:'TXT'}));
+  state.generated=[]; state.currentSystem=null;
+  if(state.draws.length){ state.playContest=String(Number(state.draws[0].contest)+1); state.playDate=''; }
+  saveState(); render(); msg('msgImport','Storico importato: '+rows.length+' estrazioni.');
+}
+function exportJson(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='superenalotto_backup_v25_click_play.json'; a.click();
+}
+function exportArchivedHitsCSV(){
+  const rows = state.archivedHits || [];
+  if(!rows.length){
+    msg('msgAnalysis','Nessuna giocata archiviata da scaricare.',true);
+    return;
+  }
+  const header = ['concorso','data','numeri','numeri_presi','quanti_numeri_presi','jolly','jolly_preso','superstar','superstar_preso'];
+  const csvRows = [header.join(';')];
+  rows.forEach(item=>{
+    ensureArchivedExtras(item);
+    csvRows.push([
+      item.contest || '',
+      item.date || '',
+      (item.numbers || []).join('-'),
+      (item.hits || []).join('-'),
+      Array.isArray(item.hits) ? item.hits.length : 0,
+      item.jolly ?? '',
+      item.jollyHit ? 'SI' : 'NO',
+      item.superstar ?? '',
+      item.superstarHit ? 'SI' : 'NO'
+    ].join(';'));
+  });
+  const blob=new Blob(['\uFEFF'+csvRows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='archivio_giocate_con_numeri_presi.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+function importJson(text){
+  const data=JSON.parse(text); state=Object.assign(emptyState(), data); saveState(); render(); msg('msgImport','Backup JSON importato.');
+}
+function nextContest(){ return String(state.draws.reduce((m,d)=>Math.max(m,Number(d.contest)||0),0)+1||1); }
+function prefillNext(){
+  byId('drawContest').value=nextContest(); byId('drawDate').value=''; byId('drawJolly').value=''; byId('drawSuper').value='';
+  document.querySelectorAll('.drawNum').forEach(i=>i.value='');
+  byId('playContest').value=nextContest(); byId('playDate').value='';
+}
+function saveDraw(){
+  const contest=byId('drawContest').value.trim(), date=byId('drawDate').value.trim();
+  const jolly=parseInt(byId('drawJolly').value,10), superstar=parseInt(byId('drawSuper').value,10);
+  const nums=numsFromInputs('.drawNum');
+  if(!contest) return msg('msgDraw','Concorso mancante.',true);
+  if(!date) return msg('msgDraw','Data mancante.',true);
+  if(!validSix(nums)) return msg('msgDraw','Servono 6 numeri validi e distinti.',true);
+  if(!(Number.isInteger(jolly)&&jolly>=1&&jolly<=90)) return msg('msgDraw','Jolly non valido.',true);
+  if(!(Number.isInteger(superstar)&&superstar>=1&&superstar<=90)) return msg('msgDraw','SuperStar non valido.',true);
+  const k=keyOf(nums);
+  const sameComboOther=state.draws.find(d=>keyOf(d.numbers)===k && d.contest!==contest);
+  if(sameComboOther) return msg('msgDraw','Questa sestina è già presente al concorso '+sameComboOther.contest+'.',true);
+  const rec={contest,date,numbers:sortNums(nums),jolly,superstar,origin:'manuale'};
+  const ix=state.draws.findIndex(d=>d.contest===contest);
+  if(ix>=0){ state.draws[ix]=rec; msg('msgDraw','Concorso '+contest+' aggiornato correttamente.'); }
+  else { state.draws.push(rec); msg('msgDraw','Concorso '+contest+' salvato correttamente.'); }
+  state.draws.sort((a,b)=>Number(b.contest)-Number(a.contest));
+  state.generated=[]; state.playContest=String(Number(contest)+1); state.latestCheckedContest=contest;
+  const playsForContest=state.played.filter(p=>String(p.contest)===String(contest));
+  saveState(); render();
+  if(playsForContest.length){
+    const positive=playsForContest.filter(p=>getHitsForPlay(p, rec).length>0).length;
+    msg('msgDraw','Concorso '+contest+' salvato. Giocate trovate: '+playsForContest.length+' · con almeno 1 numero preso: '+positive+'.');
+  }
+}
+
+function settings(){
+  return {
+    pool:+byId('f_pool').value||25000, results: Math.max(8, Math.min(50, parseInt(byId('f_results').value, 10) || 8)),
+    sumMin:+byId('f_sumMin').value||110, sumMax:+byId('f_sumMax').value||260,
+    sameDec:+byId('f_sameDec').value||3, consec:+byId('f_consec').value||2,
+    sameEnd:+byId('f_sameEnd').value||2, minDecs:+byId('f_minDecs').value||4,
+    lowMin:+byId('f_lowMin').value||2, lowMax:+byId('f_lowMax').value||4,
+    zoneMode:(byId('f_zoneMode')?.value||'MORBIDO'),
+    zoneMax:+byId('f_zoneMax').value||2,
+    zoneMinCovered:+byId('f_zoneMinCovered').value||4,
+    zoneRecent:+byId('f_zoneRecent').value||18,
+    shiftLearn:(byId('f_shiftLearn')?.value||'ON'),
+    shiftBiasWeight:+byId('f_shiftBiasWeight')?.value||12,
+    fuzzyWeight:+byId('f_fuzzyWeight')?.value||2,
+    ensembleDepth:+byId('f_ensembleDepth')?.value||3,
+    mirrorMode:(byId('f_mirrorMode')?.value||'ON'),
+    consensusCount:+byId('f_consensusCount')?.value||12,
+    personalAvoid:(byId('f_personalAvoid')?.value||'ON'),
+    imperfectRate:+byId('f_imperfectRate')?.value||20
+  };
+}
+function buildAutoSettings(){
+  const manual = settings();
+  const draws = state.draws || [];
+  const recent = draws.slice(0, 20);
+  const recentNums = recent.flatMap(d => d.numbers || []);
+  const missingNow = getMonthMissingNumbers();
+  const avgSum = recent.length ? Math.round(recent.reduce((acc,d)=>acc + (d.numbers||[]).reduce((a,b)=>a+b,0), 0) / recent.length) : 180;
+  const avgSameDec = recent.length ? recent.reduce((acc,d)=>acc + countSameDec(d.numbers||[]), 0) / recent.length : 2.4;
+  const avgConsec = recent.length ? recent.reduce((acc,d)=>acc + maxConsec(d.numbers||[]), 0) / recent.length : 1.7;
+  const doublesCount = recentNums.filter(n => n % 11 === 0).length;
+  const lowCountRecent = recentNums.filter(n => n <= 45).length;
+  const highCountRecent = recentNums.filter(n => n > 45).length;
+  const hotPairs = recurringPairs(12);
+  const heavyPairs = [...hotPairs.values()].filter(v => v >= 2).length;
+  const errorProfile = personalErrorProfile();
+  const learned = learnedShiftDeltas(errorProfile);
+
+  const modeScore = { aggressive: 0, balanced: 0, prudent: 0 };
+  if(avgSameDec >= 2.8) modeScore.aggressive += 2; else modeScore.prudent += 1;
+  if(avgConsec >= 2.1) modeScore.aggressive += 1; else modeScore.prudent += 1;
+  if(doublesCount >= 10) modeScore.balanced += 1;
+  if(heavyPairs >= 18) modeScore.balanced += 1;
+  if(missingNow.length >= 20) modeScore.aggressive += 1;
+  if((errorProfile.nearHits || 0) >= 8 && learned.length) modeScore.balanced += 2;
+
+  let mode = 'balanced';
+  if(modeScore.aggressive >= modeScore.balanced && modeScore.aggressive >= modeScore.prudent) mode = 'aggressive';
+  else if(modeScore.prudent > modeScore.balanced) mode = 'prudent';
+
+  const results = Math.max(8, Math.min(50, parseInt(byId('f_results').value, 10) || manual.results || 8));
+  const lowBias = lowCountRecent >= highCountRecent;
+  const recentWindow = results >= 30 ? 14 : 18;
+  const zoneMode = mode === 'prudent' ? 'RIGIDO' : 'MORBIDO';
+
+  return {
+    pool: results <= 12 ? 25000 : (results <= 30 ? 42000 : 65000),
+    results,
+    sumMin: Math.max(90, avgSum - (mode === 'aggressive' ? 70 : 55)),
+    sumMax: Math.min(300, avgSum + (mode === 'aggressive' ? 70 : 55)),
+    sameDec: mode === 'aggressive' ? 3 : 2,
+    consec: mode === 'aggressive' ? 3 : 2,
+    sameEnd: mode === 'aggressive' ? 3 : 2,
+    minDecs: mode === 'prudent' ? 4 : 3,
+    lowMin: lowBias ? 2 : 1,
+    lowMax: lowBias ? 5 : 4,
+    zoneMode,
+    zoneMax: mode === 'prudent' ? 2 : 3,
+    zoneMinCovered: mode === 'prudent' ? 4 : 3,
+    zoneRecent: recentWindow,
+    shiftLearn: 'ON',
+    shiftBiasWeight: (errorProfile.nearHits || 0) >= 8 ? 14 : 12,
+    fuzzyWeight: heavyPairs >= 18 ? 3 : 2,
+    ensembleDepth: results >= 30 ? 4 : 3,
+    mirrorMode: 'ON',
+    consensusCount: results >= 30 ? 14 : 12,
+    personalAvoid: 'ON',
+    imperfectRate: mode === 'aggressive' ? 28 : (mode === 'balanced' ? 20 : 12),
+    autoModeUsed: mode
+  };
+}
+function randomComboFromPool(pool){
+  const arr=[...pool];
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return sortNums(arr.slice(0,6));
+}
+function randomCombo(){ const set=new Set(); while(set.size<6) set.add(1+Math.floor(Math.random()*90)); return sortNums([...set]); }
+function countSameDec(nums){ const m={}; nums.forEach(n=>{const d=Math.floor((n-1)/10); m[d]=(m[d]||0)+1}); return Math.max(...Object.values(m)); }
+function maxConsec(nums){ let best=1,cur=1; for(let i=1;i<nums.length;i++){ if(nums[i]===nums[i-1]+1){cur++; best=Math.max(best,cur)} else cur=1 } return best; }
+function maxSameEnd(nums){ const m={}; nums.forEach(n=>{const d=n%10; m[d]=(m[d]||0)+1}); return Math.max(...Object.values(m)); }
+function diffDecs(nums){ return new Set(nums.map(n=>Math.floor((n-1)/10))).size; }
+function lowCount(nums){ return nums.filter(n=>n<=45).length; }
+function parityOk(nums){ const even=nums.filter(n=>n%2===0).length; return ['2/4','3/3','4/2'].includes(even+'/'+(6-even)); }
+
+function comboOverlapCount(a,b){
+  const setB=new Set(b);
+  return a.reduce((acc,n)=>acc+(setB.has(n)?1:0),0);
+}
+function diversityPenalty(candidate, selected){
+  if(!selected.length) return 0;
+  let penalty=0;
+  selected.forEach(existing=>{
+    const overlap=comboOverlapCount(candidate.numbers, existing.numbers);
+    if(overlap>=5) penalty+=42;
+    else if(overlap===4) penalty+=20;
+    else if(overlap===3) penalty+=8;
+  });
+  return penalty;
+}
+function pickFinalLines(scoreboard, results, variantQuota){
+  const selected=[];
+  const picked=new Set();
+  const counts={core:0,shift:0,absolute:0,wild:0};
+  const sorted=[...scoreboard].sort((a,b)=>(b.meta.score||0)-(a.meta.score||0));
+  ['core','shift','absolute','wild'].forEach(type=>{
+    sorted.filter(x=>x.meta?.variant===type).forEach(x=>{
+      if(selected.length>=results) return;
+      if(counts[type]>=variantQuota[type]) return;
+      const k=keyOf(x.numbers);
+      if(picked.has(k)) return;
+      const adjusted=(x.meta.score||0)-diversityPenalty(x, selected);
+      const dynamicGap =
+        results <= 12 ? 85 :
+        results <= 30 ? 110 :
+        140;
+      if(selected.length && adjusted < ((sorted[0]?.meta?.score||0)-dynamicGap)) return;
+      picked.add(k);
+      counts[type]++;
+      selected.push({...x, meta:{...x.meta, finalScore:Math.round(adjusted*100)/100}});
+    });
+  });
+  sorted.forEach(x=>{
+    if(selected.length>=results) return;
+    const k=keyOf(x.numbers);
+    if(picked.has(k)) return;
+    const adjusted=(x.meta.score||0)-diversityPenalty(x, selected);
+    picked.add(k);
+    counts[x.meta?.variant||'core']=(counts[x.meta?.variant||'core']||0)+1;
+    selected.push({...x, meta:{...x.meta, finalScore:Math.round(adjusted*100)/100}});
+  });
+  return selected.slice(0,results);
+}
+
+function generate(){
+  if(!state.draws.length) return msg('msgGen','Prima importa lo storico.',true);
+  const f=buildAutoSettings(); state.settings=f;
+  const extracted=new Set(state.draws.map(d=>keyOf(d.numbers)));
+  const played=new Set(state.played.map(p=>p.contest+'|'+keyOf(p.numbers)));
+  const contest=(byId('playContest').value.trim() || state.playContest || nextContest());
+  const pairMap=recurringPairs(12);
+  const missingSet=new Set(getMonthMissingNumbers());
+  const recentProfile=recentZoneProfile(f.zoneRecent);
+  const direction=zoneDirectionProfile(Math.max(6, Math.floor((f.zoneRecent||18)/2)), Math.max(6, f.zoneRecent||18));
+  const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+  const errorProfile=personalErrorProfile();
+  const learned=(f.shiftLearn==='ON') ? learnedShiftDeltas(errorProfile) : [];
+  const scoreboard=[];
+  const seen=new Set();
+  let tries=0;
+  const multiplier =
+    f.results <= 12 ? 900 :
+    f.results <= 30 ? 1200 :
+    1500;
+  const targetPool = Math.max(f.pool, f.results * multiplier);
+  while(tries<targetPool){
+    const nums=randomCombo();
+    const k=keyOf(nums);
+    if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){tries++; continue;}
+    seen.add(k);
+    const strict=comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:false});
+    const loose=!strict && comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true});
+    if(!strict && !loose){ tries++; continue; }
+    const baseMeta=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:loose});
+    const baseVariant = strict ? 'core' : 'wild';
+    const baseLabel = strict ? 'Core' : 'Wild';
+    scoreboard.push({numbers:nums,meta:{...baseMeta,variant:baseVariant,label:baseLabel,note:strict?'Sestina base forte filtrata con motore Absolute.':'Sestina imperfetta controllata scelta per copertura aggiuntiva.'}});
+    const variants=buildShiftVariants(nums, learned, f.mirrorMode).slice(0, Math.max(8, (+f.ensembleDepth||3)*10));
+    for(const shifted of variants){
+      const sk=keyOf(shifted.numbers);
+      if(seen.has(sk)||extracted.has(sk)||played.has(contest+'|'+sk)) continue;
+      const allowImperfect = shifted.label.toLowerCase().includes('selective') || shifted.label.toLowerCase().includes('mirror');
+      const ok=comboPassesAdvanced(shifted.numbers,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect,shiftVariant:true});
+      if(!ok) continue;
+      seen.add(sk);
+      const shiftMeta=evaluateCombo(shifted.numbers,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect,shiftVariant:true});
+      let tag='shift';
+      if(shifted.label.toLowerCase().includes('mirror')) tag='absolute';
+      else if(allowImperfect) tag='wild';
+      scoreboard.push({numbers:shifted.numbers,meta:{...shiftMeta,variant:tag,label:shifted.label,note:'Variante adattiva generata dal motore Absolute.'}});
+    }
+    tries++;
+  }
+  const imperfectQuota=Math.max(0, Math.min(50, +f.imperfectRate||20))/100;
+  const variantQuota={
+    core:Math.max(2, Math.ceil(f.results*0.34)),
+    shift:Math.max(2, Math.ceil(f.results*0.24)),
+    absolute:Math.max(1, Math.ceil(f.results*0.16)),
+    wild:Math.max(1, Math.round(f.results*imperfectQuota))
+  };
+  state.generated=pickFinalLines(scoreboard, f.results, variantQuota).map(g=>{ const ex=buildAutoExtras(g.numbers); return {...g, jolly:ex.jolly, superstar:ex.superstar}; });
+  state.absoluteReport=buildAbsoluteReport(errorProfile, learned, state.generated);
+  state.playContest=contest; state.playDate=byId('playDate').value || state.playDate || '';
+  saveState(); render();
+  const counts={core:state.generated.filter(x=>x.meta?.variant==='core').length,shift:state.generated.filter(x=>x.meta?.variant==='shift').length,wild:state.generated.filter(x=>x.meta?.variant==='wild').length,absolute:state.generated.filter(x=>x.meta?.variant==='absolute').length};
+  msg('msgGen', state.generated.length ? ('Generate '+state.generated.length+' sestine finali. Core: '+counts.core+' · Shift: '+counts.shift+' · Absolute: '+counts.absolute+' · Wild: '+counts.wild+'.') : 'Nessuna sestina trovata con questi filtri.', !state.generated.length);
+}
+function markPlayed(){
+  const contest=(byId('playContest').value.trim() || state.playContest || '').trim();
+  const date=(byId('playDate').value.trim() || state.playDate || '').trim();
+  if(!contest) return msg('msgGen','Concorso da giocare mancante.',true);
+  if(!state.generated.length) return msg('msgGen','Prima genera le sestine.',true);
+  let added=0;
+  state.generated.forEach(g=>{
+    const k=keyOf(g.numbers);
+    if(!state.played.some(p=>p.contest===contest && keyOf(p.numbers)===k)){
+      state.played.push({contest,date,numbers:g.numbers,jolly:g.jolly,superstar:g.superstar,source:(g.meta?.label||g.meta?.variant||'generatore')});
+      added++;
+    }
+  });
+  saveState(); render(); msg('msgGen', added?('Segnate '+added+' sestine come giocate per il concorso '+contest+'.'):'Nessuna nuova giocata da salvare.');
+}
+function combinations(arr,k){
+  const out=[]; 
+  function rec(start,path){
+    if(path.length===k){ out.push([...path]); return; }
+    for(let i=start;i<arr.length;i++){ path.push(arr[i]); rec(i+1,path); path.pop(); }
+  }
+  rec(0,[]);
+  return out;
+}
+function comboKey(arr){ return arr.join('-'); }
+
+function buildUniverse(nums,target){
+  const combos=combinations(sortNums(nums), target);
+  return combos.map(c=>({key:comboKey(c), nums:c}));
+}
+function smartMode(){ return SMART_MODES[state.smartPicker.mode] || SMART_MODES.INTEGRALE; }
+function setSmartMode(mode){
+  state.smartPicker.mode = mode in SMART_MODES ? mode : 'INTEGRALE';
+  const cfg=smartMode();
+  if(state.smartPicker.selected.length > cfg.max){
+    state.smartPicker.selected = state.smartPicker.selected.slice(0,cfg.max);
+  }
+  saveState();
+  renderSmartPicker();
+  syncSmartAutoCount();
+}
+
+function toggleSmartNumber(n){
+  const cfg=smartMode();
+  const set=new Set(state.smartPicker.selected);
+  if(set.has(n)) set.delete(n);
+  else{
+    if(set.size >= cfg.max){
+      msg('msgSystem','Per '+state.smartPicker.mode+' puoi selezionare al massimo '+cfg.max+' numeri.',true);
+      return;
+    }
+    set.add(n);
+  }
+  state.smartPicker.selected = sortNums([...set]);
+  saveState();
+  renderSmartPicker();
+}
+function clearSmartNumbers(){
+  state.smartPicker.selected = [];
+  saveState();
+  renderSmartPicker();
+  msg('msgSystem','Numeri del sistema cancellati.');
+}
+function estimateRows(mode, count){
+  if(!count || count<6) return 0;
+  if(mode==='INTEGRALE') return choose(count,6);
+  if(mode==='G5') return Math.max(choose(count,5), 1);
+  if(mode==='G4') return Math.max(Math.ceil(choose(count,4)/15), 1);
+  if(mode==='G3') return Math.max(Math.ceil(choose(count,3)/20), 1);
+  return 0;
+}
+function choose(n,k){
+  if(k<0||k>n) return 0;
+  if(k===0||k===n) return 1;
+  let r=1;
+  for(let i=1;i<=k;i++) r=r*(n-k+i)/i;
+  return Math.round(r);
+}
+function formatMoney(v){ return (v||0).toFixed(2).replace('.',',')+' €'; }
+
+
+
+function zoneIndex3x3(n){
+  const row=Math.floor((n-1)/30);
+  const col=Math.floor(((n-1)%30)/10);
+  return row*3+col;
+}
+function zoneCounts3x3(nums){
+  const counts=Array(9).fill(0);
+  nums.forEach(n=>{ counts[zoneIndex3x3(n)]++; });
+  return counts;
+}
+function coveredZonesCount(nums){
+  return zoneCounts3x3(nums).filter(v=>v>0).length;
+}
+function maxZoneCount(nums){
+  const counts=zoneCounts3x3(nums);
+  return Math.max(...counts);
+}
+function recentZoneProfile(limitDraws){
+  const counts=Array(9).fill(0);
+  const draws=(state.draws||[]).slice(0, Math.max(1, limitDraws||18));
+  draws.forEach(d=>{
+    (d.numbers||[]).forEach(n=>{ counts[zoneIndex3x3(n)]++; });
+  });
+  return counts;
+}
+function zoneScore(nums, recentProfile){
+  const counts=zoneCounts3x3(nums);
+  let score=0;
+  for(let i=0;i<counts.length;i++){
+    if(counts[i]===0) continue;
+    score += counts[i] * ((recentProfile && recentProfile[i]) || 0);
+  }
+  return score;
+}
+function zoneRulePasses(nums,f){
+  if(!f || !f.zoneMode || f.zoneMode==='OFF') return true;
+  const maxZone=maxZoneCount(nums);
+  const covered=coveredZonesCount(nums);
+  const allowedMax=f.zoneMode==='RIGIDO' ? Math.max(1, f.zoneMax) : Math.max(2, f.zoneMax+1);
+  const minCovered=f.zoneMode==='RIGIDO' ? Math.max(1, f.zoneMinCovered) : Math.max(1, f.zoneMinCovered-1);
+  if(maxZone>allowedMax) return false;
+  if(covered<minCovered) return false;
+  return true;
+}
+
+function getMonthDraws(){
+  if(!state.draws || !state.draws.length) return [];
+  const firstValid = state.draws.find(d=>d && typeof d.date==='string' && d.date.length>=7);
+  if(!firstValid) return [];
+  const monthKey=firstValid.date.slice(0,7);
+  return state.draws.filter(d=>d && typeof d.date==='string' && d.date.startsWith(monthKey));
+}
+function getMonthMissingNumbers(){
+  const monthDraws=getMonthDraws();
+  if(!monthDraws.length) return [];
+  const seen=new Set();
+  monthDraws.forEach(d=>d.numbers.forEach(n=>seen.add(n)));
+  const out=[];
+  for(let n=1;n<=90;n++) if(!seen.has(n)) out.push(n);
+  return out;
+}
+function recurringPairs(limitDraws=12){
+  const draws=state.draws.slice(0,limitDraws);
+  const map=new Map();
+  draws.forEach(d=>{
+    const nums=sortNums(d.numbers);
+    for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++){
+      const k=nums[i]+'-'+nums[j];
+      map.set(k,(map.get(k)||0)+1);
+    }
+  });
+  return map;
+}
+function countRecurringPairsInCombo(nums,pairMap,minWeight=2){
+  let c=0;
+  const s=sortNums(nums);
+  for(let i=0;i<s.length;i++) for(let j=i+1;j<s.length;j++){
+    if((pairMap.get(s[i]+'-'+s[j])||0)>=minWeight) c++;
+  }
+  return c;
+}
+function nearHitsToReference(nums, reference, deltas=[1,2]){
+  if(!reference || !reference.length) return 0;
+  let hits=0;
+  nums.forEach(n=>{
+    if(reference.some(r=>deltas.includes(Math.abs(n-r)))) hits++;
+  });
+  return hits;
+}
+function zoneDirectionProfile(shortLimit=9,longLimit=18){
+  const short=recentZoneProfile(shortLimit);
+  const long=recentZoneProfile(longLimit);
+  return short.map((v,i)=>v-(long[i]||0)*(shortLimit/Math.max(1,longLimit)));
+}
+function directionalZoneScore(nums,direction){
+  if(!direction || !direction.length) return 0;
+  return zoneCounts3x3(nums).reduce((acc,c,i)=>acc+(c*(direction[i]||0)),0);
+}
+function fuzzyPairHits(nums,pairMap){
+  let hits=0;
+  const s=sortNums(nums);
+  for(let i=0;i<s.length;i++) for(let j=i+1;j<s.length;j++){
+    let found=false;
+    for(let da=-1;da<=1 && !found;da++) for(let db=-1;db<=1 && !found;db++){
+      const a=s[i]+da, b=s[j]+db;
+      if(a<1||a>90||b<1||b>90||a===b) continue;
+      const k=(Math.min(a,b))+'-'+(Math.max(a,b));
+      if((pairMap.get(k)||0)>=2){ found=true; hits++; }
+    }
+  }
+  return hits;
+}
+
+function personalErrorProfile(){
+  const profile={samples:0, deltaCounts:{'-3':0,'-2':0,'-1':0,'0':0,'1':0,'2':0,'3':0}, nearHits:0, exactHits:0, repeatedNumbers:{}, hotMisses:[]};
+  const drawMap=new Map((state.draws||[]).map(d=>[String(d.contest), d]));
+  (state.played||[]).forEach(p=>{
+    const draw=drawMap.get(String(p.contest));
+    if(!draw || !draw.numbers) return;
+    const dn=draw.numbers;
+    (p.numbers||[]).forEach(n=>{
+      profile.repeatedNumbers[n]=(profile.repeatedNumbers[n]||0)+1;
+      let bestDelta=null, bestAbs=99;
+      dn.forEach(d=>{
+        const delta=d-n;
+        const ad=Math.abs(delta);
+        if(ad<bestAbs){ bestAbs=ad; bestDelta=delta; }
+      });
+      if(bestDelta===null) return;
+      profile.samples++;
+      if(bestAbs===0) profile.exactHits++;
+      if(bestAbs<=3){
+        profile.nearHits++;
+        const capped=Math.max(-3, Math.min(3, bestDelta));
+        profile.deltaCounts[String(capped)] = (profile.deltaCounts[String(capped)]||0)+1;
+      }
+    });
+  });
+  profile.hotMisses=Object.entries(profile.repeatedNumbers).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([n,c])=>({n:+n,c}));
+  return profile;
+}
+function learnedShiftDeltas(profile){
+  const entries=Object.entries(profile?.deltaCounts||{}).map(([d,c])=>({delta:+d,count:c})).filter(x=>x.delta!==0 && x.count>0).sort((a,b)=>b.count-a.count || Math.abs(a.delta)-Math.abs(b.delta));
+  return entries.slice(0,4);
+}
+function mirrorInDecade(n){
+  const start=Math.floor((n-1)/10)*10 + 1;
+  const end=Math.min(start+9, 90);
+  const mirrored=end - (n-start);
+  return (mirrored>=1&&mirrored<=90)?mirrored:n;
+}
+function buildAdaptiveShiftVariants(nums, learned, mirrorMode){
+  const variants=[];
+  const pushVariant=(arr,label)=>{
+    const s=sortNums(arr);
+    if(s.some(n=>n<1||n>90)) return;
+    if(new Set(s).size!==6) return;
+    variants.push({numbers:s,label});
+  };
+  [{delta:-1,label:'Shift -1'},{delta:1,label:'Shift +1'},{delta:-2,label:'Shift -2'},{delta:2,label:'Shift +2'}].forEach(s=>pushVariant(nums.map(n=>n+s.delta), s.label));
+  (learned||[]).forEach(x=>pushVariant(nums.map(n=>n+x.delta), 'Adaptive '+(x.delta>0?'+':'')+x.delta));
+  const top=(learned||[]).slice(0,2);
+  top.forEach(x=>{
+    for(let i=0;i<nums.length;i++){
+      for(let j=i+1;j<nums.length;j++){
+        const copy=[...nums];
+        copy[i]+=x.delta; copy[j]+=x.delta;
+        pushVariant(copy,'Selective '+(x.delta>0?'+':'')+x.delta+' ['+(i+1)+','+(j+1)+']');
+      }
+    }
+  });
+  if(mirrorMode==='ON'){
+    pushVariant(nums.map(n=>mirrorInDecade(n)),'Mirror decina');
+    nums.forEach((n,idx)=>{
+      const copy=[...nums]; copy[idx]=mirrorInDecade(n); pushVariant(copy,'Mirror parziale '+n);
+    });
+  }
+  const uniq=new Map();
+  variants.forEach(v=>uniq.set(keyOf(v.numbers), v));
+  return [...uniq.values()];
+}
+function learnedCoverage(nums, latestDraw, learned){
+  if(!latestDraw || !latestDraw.length || !learned || !learned.length) return 0;
+  let hits=0;
+  nums.forEach(n=>{
+    if(learned.some(x=>latestDraw.includes(n-x.delta))) hits++;
+  });
+  return hits;
+}
+function repeatedPenalty(nums, profile){
+  const rep=profile?.repeatedNumbers||{};
+  return nums.reduce((acc,n)=>acc+Math.max(0,(rep[n]||0)-1),0);
+}
+function autoTuneFactors(profile){
+  const total=Math.max(1, profile?.samples||0);
+  const neg=((profile?.deltaCounts?.['-1']||0)+(profile?.deltaCounts?.['-2']||0)+(profile?.deltaCounts?.['-3']||0))/total;
+  const pos=((profile?.deltaCounts?.['1']||0)+(profile?.deltaCounts?.['2']||0)+(profile?.deltaCounts?.['3']||0))/total;
+  const near=(profile?.nearHits||0)/total;
+  const exact=(profile?.exactHits||0)/total;
+  return {
+    shiftBias: 1 + (near*0.9) + Math.abs(neg-pos)*0.6,
+    fuzzyBias: 1 + Math.max(0, near-exact)*0.8,
+    repeatPenalty: 1 + Math.max(0, (profile?.hotMisses?.length||0)/20),
+    driftBias: neg>pos ? -1 : (pos>neg ? 1 : 0)
+  };
+}
+function buildAbsoluteReport(profile, learned, generated){
+  const freq=new Map();
+  (generated||[]).forEach(g=>(g.numbers||[]).forEach(n=>freq.set(n,(freq.get(n)||0)+1)));
+  const consensus=[...freq.entries()].sort((a,b)=>b[1]-a[1] || a[0]-b[0]).slice(0,18).map(([n,c])=>({n,c}));
+  return {profile, learned, consensus, generatedCount:(generated||[]).length, autoTune:autoTuneFactors(profile)};
+}
+
+function buildShiftVariants(nums, learned, mirrorMode){
+  return buildAdaptiveShiftVariants(nums, learned, mirrorMode);
+}
+function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
+  if(opts===undefined && errorProfile && !Array.isArray(errorProfile) && typeof errorProfile==='object' && ('allowImperfect' in errorProfile || 'shiftVariant' in errorProfile)){
+    opts=errorProfile; errorProfile=null; learned=[];
+  }
+  if(Array.isArray(errorProfile) && !Array.isArray(learned)){
+    opts=learned||{}; learned=errorProfile; errorProfile=null;
+  }
+  if(!opts || Array.isArray(opts) || typeof opts!=='object') opts={};
+  const tuned=autoTuneFactors(errorProfile||{});
+  const sum=nums.reduce((a,b)=>a+b,0);
+  const low=lowCount(nums);
+  const missCount=nums.filter(n=>missingSet.has(n)).length;
+  const recurrent=countRecurringPairsInCombo(nums,pairMap,2);
+  const fuzzy=fuzzyPairHits(nums,pairMap);
+  const nearLatest=nearHitsToReference(nums, latestDraw, [1]);
+  const nearLatestWide=nearHitsToReference(nums, latestDraw, [1,2]);
+  const zoneBase=zoneScore(nums,recentProfile);
+  const zoneDir=directionalZoneScore(nums,direction);
+  const adaptiveHits=nearHitsToReference(nums, latestDraw, [1,2,3]);
+  const learnedHits=learnedCoverage(nums, latestDraw, learned||[]);
+  const repeatPenaltyValue=repeatedPenalty(nums, errorProfile||{});
+  const stats={
+    sum,
+    low,
+    missCount,
+    recurrent,
+    fuzzy,
+    nearLatest,
+    nearLatestWide,
+    adaptiveHits,
+    learnedHits,
+    repeatPenalty:repeatPenaltyValue,
+    sameDec:countSameDec(nums),
+    consec:maxConsec(nums),
+    sameEnd:maxSameEnd(nums),
+    diffDec:diffDecs(nums),
+    maxZone:maxZoneCount(nums),
+    coveredZones:coveredZonesCount(nums),
+    zoneBase,
+    zoneDir,
+    parityOk:parityOk(nums)
+  };
+  let penalty=0;
+  if(!stats.parityOk) penalty+=14;
+  if(sum<f.sumMin) penalty+=Math.min(18, f.sumMin-sum);
+  if(sum>f.sumMax) penalty+=Math.min(18, sum-f.sumMax);
+  if(stats.sameDec>f.sameDec) penalty+=8*(stats.sameDec-f.sameDec);
+  if(stats.consec>f.consec) penalty+=7*(stats.consec-f.consec);
+  if(stats.sameEnd>f.sameEnd) penalty+=6*(stats.sameEnd-f.sameEnd);
+  if(stats.diffDec<f.minDecs) penalty+=8*(f.minDecs-stats.diffDec);
+  if(stats.low<f.lowMin) penalty+=6*(f.lowMin-stats.low);
+  if(stats.low>f.lowMax) penalty+=6*(stats.low-f.lowMax);
+  if(missingSet.size && stats.missCount<1) penalty+=9;
+  if(missingSet.size && stats.missCount>2) penalty+=6*(stats.missCount-2);
+  if(stats.recurrent>1) penalty+=5*(stats.recurrent-1);
+  if(!zoneRulePasses(nums,f)) penalty+=10;
+  if(stats.nearLatest===0) penalty+=6;
+  if(stats.nearLatestWide===0) penalty+=4;
+  penalty += stats.repeatPenalty * (f.personalAvoid==='ON' ? 2.6 * tuned.repeatPenalty : 0);
+  const bonus =
+    (stats.nearLatest*9*tuned.shiftBias) +
+    (stats.nearLatestWide*4) +
+    (stats.adaptiveHits*2.4) +
+    (stats.learnedHits*((+f.shiftBiasWeight||12)/3)*tuned.shiftBias) +
+    (stats.fuzzy*(+f.fuzzyWeight||2)*tuned.fuzzyBias) +
+    (stats.zoneBase*0.45) +
+    (stats.zoneDir*4.5) +
+    (stats.coveredZones*5) +
+    ((stats.missCount>=1&&stats.missCount<=2)?7:0) +
+    ((opts.shiftVariant)?8:0) +
+    ((tuned.driftBias<0 && nums.some(n=>n>1))?1.2:0) +
+    ((tuned.driftBias>0 && nums.some(n=>n<90))?1.2:0);
+  const score = Math.round((120 - penalty + bonus)*100)/100;
+  return {...stats, penalty, score, tuned};
+}
+function comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
+  const info=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,opts);
+  if(opts.allowImperfect) return info.score>=124;
+  if(info.penalty>0) return false;
+  if(info.nearLatest===0 && info.nearLatestWide<2 && info.learnedHits<1) return false;
+  if(info.fuzzy<1 && info.learnedHits<1) return false;
+  return info.score>=132;
+}
+function buildCandidateCombos(sampleSize=12000){
+  const f=settings();
+  const pairMap=recurringPairs(12);
+  const missingSet=new Set(getMonthMissingNumbers());
+  const recentProfile=recentZoneProfile(f.zoneRecent);
+  const direction=zoneDirectionProfile(Math.max(6, Math.floor((f.zoneRecent||18)/2)), Math.max(6, f.zoneRecent||18));
+  const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+  const extracted=new Set(state.draws.map(d=>keyOf(d.numbers)));
+  const accepted=[];
+  const seen=new Set();
+  let tries=0;
+  const hardLimit=Math.max(sampleSize*12, 20000);
+  while(accepted.length<sampleSize && tries<hardLimit){
+    const nums=randomCombo();
+    const k=keyOf(nums);
+    if(seen.has(k) || extracted.has(k)){ tries++; continue; }
+    seen.add(k);
+    if(comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,{allowImperfect:accepted.length>sampleSize*0.6})) accepted.push(nums);
+    tries++;
+  }
+  return accepted;
+}
+function numberStats(){
+  const map=new Map();
+  const monthMissing=new Set(getMonthMissingNumbers());
+  const pairMap=recurringPairs(12);
+  const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+  const prevDraw=(state.draws[1] && state.draws[1].numbers) ? state.draws[1].numbers : [];
+  const direction=zoneDirectionProfile(9,18);
+  for(let n=1;n<=90;n++) map.set(n,{n,freqGen:0,freqDraw:0,lastSeen:null,monthMissing:monthMissing.has(n),candidateFreq:0,pairBoost:0,nearLatest:0,nearPrev:0,zoneTrend:(direction[zoneIndex3x3(n)]||0)});
+  state.generated.forEach(g=>g.numbers.forEach(n=>map.get(n).freqGen++));
+  state.draws.forEach((d,idx)=>d.numbers.forEach(n=>{
+    const item=map.get(n);
+    item.freqDraw++;
+    if(item.lastSeen===null) item.lastSeen=idx;
+  }));
+  const candidateSource = state.generated.length ? state.generated.map(g=>g.numbers) : buildCandidateCombos(Math.min(15000, Math.max(3000, (+byId('f_pool').value||25000)/2)));
+  candidateSource.forEach(nums=>nums.forEach(n=>map.get(n).candidateFreq++));
+  for(const [k,w] of pairMap.entries()){
+    if(w<2) continue;
+    const [a,b]=k.split('-').map(Number);
+    map.get(a).pairBoost += (w-1);
+    map.get(b).pairBoost += (w-1);
+  }
+  latestDraw.forEach(r=>{ for(let d=-2; d<=2; d++){ const n=r+d; if(n>=1&&n<=90 && d!==0) map.get(n).nearLatest += (Math.abs(d)===1?2.2:1.1); } });
+  prevDraw.forEach(r=>{ for(let d=-2; d<=2; d++){ const n=r+d; if(n>=1&&n<=90 && d!==0) map.get(n).nearPrev += (Math.abs(d)===1?1.4:0.7); } });
+  return [...map.values()].map(x=>({
+    ...x,
+    score:(x.candidateFreq*10)+(x.freqGen*7)+(x.freqDraw*1.5)+((x.lastSeen===null?12:Math.min(x.lastSeen,12))*1.8)+(x.monthMissing?8:0)+(x.pairBoost*2)+(x.nearLatest*6)+(x.nearPrev*3)+(x.zoneTrend*4)
+  }));
+}
+function systemLowRange(wanted, f){
+  return {
+    min: Math.max(1, Math.floor((wanted * f.lowMin)/6)),
+    max: Math.min(wanted-1, Math.ceil((wanted * f.lowMax)/6))
+  };
+}
+function buildSystemNumbers(mode,count){
+  const cfg=SMART_MODES[mode]||SMART_MODES.INTEGRALE;
+  const wanted=Math.max(cfg.min, Math.min(cfg.max, count||cfg.min));
+  const f=settings();
+  const stats=numberStats();
+  const recentProfile=recentZoneProfile(f.zoneRecent);
+  const sorted=stats.sort((a,b)=>b.score-a.score || a.n-b.n);
+  const pairMap=recurringPairs(12);
+  const missingSet=new Set(getMonthMissingNumbers());
+  const lowRange=systemLowRange(wanted,f);
+  const selected=[];
+  const used=new Set();
+  const decadeCount={};
+  const endCount={};
+  const strongPairs=[];
+  const maxPerDecade = wanted>30 ? 4 : Math.max(3, Math.min(4, f.sameDec));
+  const maxSameEnding = wanted>=20 ? Math.max(3, f.sameEnd+1) : Math.max(2, f.sameEnd);
+  const maxRun = Math.max(2, f.consec+1);
+  const missingTargetMin = missingSet.size ? 1 : 0;
+  const missingTargetMax = missingSet.size ? 2 : 0;
+  function runLengthIfAdded(n){
+    const tmp=[...selected,n].sort((a,b)=>a-b);
+    let run=1,best=1;
+    for(let i=1;i<tmp.length;i++){ if(tmp[i]===tmp[i-1]+1){run+=1; best=Math.max(best,run)} else run=1; }
+    return best;
+  }
+  function projectedLowCount(n){
+    return selected.filter(x=>x<=45).length + (n<=45?1:0);
+  }
+  function projectedMissingCount(n){
+    return selected.filter(x=>missingSet.has(x)).length + (missingSet.has(n)?1:0);
+  }
+  function pairHitsIfAdded(n){
+    let hits=0;
+    for(const s of selected){ if((pairMap.get(Math.min(s,n)+'-'+Math.max(s,n))||0)>=2) hits++; }
+    return hits;
+  }
+  function canPick(n, phase='strict'){
+    if(used.has(n)) return false;
+    const dec=Math.floor((n-1)/10);
+    const end=n%10;
+    const remain = wanted - selected.length - 1;
+    const lowAfter = projectedLowCount(n);
+    const missingAfter = projectedMissingCount(n);
+    if(phase!=='relaxed'){
+      if((decadeCount[dec]||0)>=maxPerDecade) return false;
+      if((endCount[end]||0)>=maxSameEnding) return false;
+      if(runLengthIfAdded(n)>maxRun) return false;
+      if(lowAfter>lowRange.max) return false;
+      if(missingAfter>missingTargetMax && missingTargetMax>0) return false;
+      if(pairHitsIfAdded(n)>1) return false;
+      if(!zoneRulePasses([...selected,n], f)) return false;
+    }
+    const minLowPossible = lowAfter + 0;
+    const maxLowPossible = lowAfter + remain;
+    if(maxLowPossible < lowRange.min) return false;
+    if(minLowPossible > lowRange.max) return false;
+    if(missingTargetMin>0){
+      const currentMissingPool = sorted.filter(x=>!used.has(x.n) && missingSet.has(x.n) && x.n!==n).length;
+      if(missingAfter + Math.min(remain,currentMissingPool) < missingTargetMin) return false;
+    }
+    return true;
+  }
+  function add(n){
+    used.add(n); selected.push(n);
+    const dec=Math.floor((n-1)/10), end=n%10;
+    decadeCount[dec]=(decadeCount[dec]||0)+1;
+    endCount[end]=(endCount[end]||0)+1;
+  }
+  const missingPriority = sorted.filter(x=>x.monthMissing);
+  for(const item of missingPriority){
+    if(selected.filter(n=>missingSet.has(n)).length>=missingTargetMin) break;
+    if(selected.length>=wanted) break;
+    if(canPick(item.n,'strict')) add(item.n);
+  }
+  for(const item of sorted){ if(selected.length>=wanted) break; if(canPick(item.n,'strict')) add(item.n); }
+  if(selected.length<wanted){
+    for(const item of sorted){ if(selected.length>=wanted) break; if(canPick(item.n,'soft')) add(item.n); }
+  }
+  if(selected.length<wanted){
+    for(const item of sorted){ if(selected.length>=wanted) break; if(canPick(item.n,'relaxed')) add(item.n); }
+  }
+  const enriched=selected.sort((a,b)=>a-b);
+  const shiftedCandidates=[];
+  enriched.forEach(n=>{ [-1,1].forEach(d=>{ const v=n+d; if(v>=1&&v<=90 && !used.has(v)) shiftedCandidates.push(v); }); });
+  for(const n of shiftedCandidates){
+    if(enriched.length>=wanted) break;
+    if(canPick(n,'soft')) add(n);
+  }
+  const finalSelected=selected.sort((a,b)=>a-b);
+  return finalSelected;
+}
+function syncSmartAutoCount(){
+  const cfg=smartMode();
+  const sel=byId('smartAutoCount');
+  if(!sel) return;
+  const current=Number(sel.value)||cfg.min;
+  sel.innerHTML='';
+  for(let n=cfg.min;n<=cfg.max;n++){
+    const opt=document.createElement('option');
+    opt.value=String(n);
+    opt.textContent=String(n);
+    sel.appendChild(opt);
+  }
+  const next=(current>=cfg.min && current<=cfg.max)?current:cfg.min;
+  sel.value=String(next);
+}
+function autoPickSmartNumbers(){
+  const cfg=smartMode();
+  const count=Number(byId('smartAutoCount').value)||cfg.min;
+  if(!state.generated.length && !state.draws.length) return msg('msgSystem','Prima importa lo storico o genera almeno alcune sestine.',true);
+  const nums=buildSystemNumbers(state.smartPicker.mode, count);
+  state.smartPicker.selected=nums;
+  saveState();
+  renderSmartPicker();
+  msg('msgSystem', state.smartPicker.mode+' generato con '+nums.length+' numeri usando i filtri attivi, inclusa heatmap zone, e i segnali statistici disponibili. Ora puoi confermare e copiarli su Sisal.');
+}
+
+function buildReducedSystem(selected, target){
+  const nums=sortNums(selected);
+  const mode=state.smartPicker.mode;
+  const f=settings();
+  return {
+    mode,
+    base:nums,
+    selectedCount:nums.length,
+    target,
+    integralRows: choose(nums.length,6),
+    coveredZones: coveredZonesCount(nums),
+    maxZone: maxZoneCount(nums),
+    zoneMap: zoneCounts3x3(nums),
+    zoneMode: f.zoneMode,
+    note:'Numeri costruiti usando i filtri attivi: pari/dispari, somma, decine, consecutivi, finali, bassi/alti, numeri mancanti del mese, coppie ricorrenti e heatmap zone 3x3. Copiali e ricreali manualmente su Sisal con lo stesso sistema ridotto.'
+  };
+}
+function buildSmartSystem(){
+  const cfg=smartMode();
+  const selected=state.smartPicker.selected;
+  if(selected.length < cfg.min) return msg('msgSystem','Per '+state.smartPicker.mode+' devi selezionare almeno '+cfg.min+' numeri.',true);
+  if(selected.length > cfg.max) return msg('msgSystem','Per '+state.smartPicker.mode+' puoi selezionare massimo '+cfg.max+' numeri.',true);
+
+  msg('msgSystem','Creazione sistema in corso...');
+  setTimeout(()=>{
+    const system=buildReducedSystem(selected, cfg.target);
+    state.currentSystem=system;
+    saveState();
+    render();
+    msg('msgSystem', system.mode+' pronto. Ora puoi copiare la lista numeri e riportarla su Sisal.');
+  },10);
+}
+function loadGeneratedToSmart(){
+  if(!state.generated.length) return msg('msgSystem','Non ci sono sestine generate da caricare.',true);
+  const nums=state.generated[0].numbers;
+  state.smartPicker.mode='INTEGRALE';
+  state.smartPicker.selected=[...nums];
+  saveState();
+  renderSmartPicker();
+  msg('msgSystem','Caricata la prima sestina generata nel pannello sistemi.');
+}
+function pickAllGenerated(){
+  if(!state.generated.length) return msg('msgSystem','Non ci sono sestine generate.',true);
+  const txt=state.generated.map((g,i)=>'Riga '+(i+1)+': '+g.numbers.join(' - ')).join('\n');
+  alert('Sestine disponibili:\n\n'+txt+'\n\nOra puoi cliccare "Carica una sestina generata" oppure copiarle manualmente nella tua logica.');
+}
+function resetSmartSystem(){
+  state.currentSystem=null;
+  byId('systemCopyBox').value='';
+  saveState();
+  render();
+  msg('msgSystem','Sistema rimosso.');
+}
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; }
+}
+async function copySystemNumbers(){
+  if(!state.currentSystem?.base?.length) return msg('msgSystem','Conferma prima il sistema.',true);
+  const txt=state.currentSystem.base.join(' ');
+  byId('systemCopyBox').value=txt;
+  const ok=await copyText(txt);
+  msg('msgSystem', ok ? 'Numeri copiati negli appunti.' : 'Copia manuale dal riquadro sotto.');
+}
+async function copySystemLine(){
+  if(!state.currentSystem?.base?.length) return msg('msgSystem','Conferma prima il sistema.',true);
+  const txt=state.currentSystem.mode+' | '+state.currentSystem.base.join(' ');
+  byId('systemCopyBox').value=txt;
+  const ok=await copyText(txt);
+  msg('msgSystem', ok ? 'Riga pronta copiata.' : 'Copia manuale dal riquadro sotto.');
+}
+
+
+
+function parseManualPlayLine(line){
+  const cleaned=(line||'').trim();
+  if(!cleaned) return null;
+  const values=cleaned.split(/[\s,;|\/-]+/).map(x=>parseInt(x,10)).filter(n=>Number.isInteger(n));
+  if(values.length!==6 && values.length!==8) return null;
+  const nums=values.slice(0,6);
+  if(!validSix(nums)) return null;
+  let jolly=null, superstar=null;
+  if(values.length===8){
+    jolly=values[6];
+    superstar=values[7];
+    if(!(Number.isInteger(jolly)&&jolly>=1&&jolly<=90)) return null;
+    if(!(Number.isInteger(superstar)&&superstar>=1&&superstar<=90)) return null;
+  } else {
+    const ex=buildAutoExtras(nums);
+    jolly=ex.jolly;
+    superstar=ex.superstar;
+  }
+  return {numbers:sortNums(nums), jolly, superstar};
+}
+function saveManualHistoricalPlays(){
+  const contest=byId('manualContest').value.trim();
+  const date=byId('manualDate').value.trim();
+  const raw=byId('manualPlaysBox').value || '';
+  if(!contest) return msg('msgManualPlays','Concorso mancante.',true);
+  if(!raw.trim()) return msg('msgManualPlays','Incolla o scrivi almeno una sestina.',true);
+  const lines=raw.split(/\r?\n/);
+  let added=0, skipped=0, duplicates=0;
+  const draw=getDrawByContest(contest);
+  const seenBatch=new Set();
+  lines.forEach(line=>{
+    const parsed=parseManualPlayLine(line);
+    if(!parsed){ if(line.trim()) skipped++; return; }
+    const nums=parsed.numbers;
+    const k=keyOf(nums);
+    if(seenBatch.has(k)){ duplicates++; return; }
+    seenBatch.add(k);
+    const alreadyPlayed=state.played.some(p=>String(p.contest)===String(contest) && keyOf(p.numbers)===k);
+    const alreadyArchived=state.archivedHits.some(a=>String(a.contest)===String(contest) && keyOf(a.numbers)===k);
+    if(alreadyPlayed || alreadyArchived){ duplicates++; return; }
+    state.played.unshift({
+      contest:String(contest),
+      date:date || draw?.date || '',
+      numbers:[...nums],
+      jolly:parsed.jolly,
+      superstar:parsed.superstar,
+      source:'storico manuale'
+    });
+    added++;
+  });
+  state.latestCheckedContest=String(contest);
+  saveState();
+  render();
+  let out='Giocate storiche salvate: '+added+'.';
+  if(draw){
+    const positive=state.played.filter(p=>String(p.contest)===String(contest)).filter(p=>getHitsForPlay(p, draw).length>0).length;
+    out += ' Estrazione presente: sì. Giocate con almeno 1 numero preso: '+positive+'.';
+  }
+  if(skipped) out += ' Righe non valide: '+skipped+'.';
+  if(duplicates) out += ' Doppioni saltati: '+duplicates+'.';
+  msg('msgManualPlays', out, added===0);
+}
+function useSelectedDrawForManual(){
+  const contest=byId('analysisContest').value || state.latestCheckedContest || '';
+  if(!contest) return msg('msgManualPlays','Seleziona prima un concorso nell’area analisi o salva un’estrazione.',true);
+  byId('manualContest').value=contest;
+  const draw=getDrawByContest(contest);
+  if(draw?.date) byId('manualDate').value=draw.date;
+  msg('msgManualPlays','Concorso '+contest+' caricato nel modulo storico.',false);
+}
+
+function getDrawByContest(contest){ return state.draws.find(d=>String(d.contest)===String(contest)); }
+function getHitsForPlay(play, draw){
+  return getPlayOutcome(play, draw).hits;
+}
+function renderPlayBalls(nums, hits=[], compact=false){
+  const hitSet=new Set(hits||[]);
+  const lineClass='nums-hitline'+(compact?' compact':'');
+  const ballClass=compact?' compact':'';
+  return '<div class="'+lineClass+'">'+nums.map(n=>'<span class="ball '+(hitSet.has(n)?'hit':'miss')+ballClass+'">'+n+'</span>').join('')+'</div>';
+}
+function archivePlayed(idx){
+  const play=state.played[idx];
+  if(!play) return;
+  const draw=getDrawByContest(play.contest);
+  const outcome=getPlayOutcome(play, draw);
+  const hits=outcome.hits;
+  if(!hits.length) return msg('msgAnalysis','Questa giocata ha 0 numeri presi e non può essere archiviata.',true);
+  const already=state.archivedHits.some(a=>String(a.contest)===String(play.contest) && keyOf(a.numbers)===keyOf(play.numbers));
+  if(already){
+    state.played.splice(idx,1);
+    saveState();
+    render();
+    return msg('msgAnalysis','Questa giocata era già presente in archivio.',false);
+  }
+  state.archivedHits.unshift({
+    contest:play.contest,
+    date:draw?.date || play.date || '',
+    numbers:[...play.numbers],
+    hits:[...hits],
+    hitsCount:hits.length,
+    jolly:play.jolly,
+    superstar:play.superstar,
+    jollyHit:outcome.jollyHit,
+    superstarHit:outcome.superstarHit,
+    source:play.source || 'manuale',
+    archivedAt:new Date().toISOString()
+  });
+  state.played.splice(idx,1);
+  saveState();
+  render();
+  msg('msgAnalysis','Giocata archiviata con '+hits.length+' numeri presi.',false);
+}
+function removeArchived(idx){ state.archivedHits.splice(idx,1); saveState(); render(); }
+
+function removePlayed(idx){ state.played.splice(idx,1); saveState(); render(); }
+function removeDraw(contest){ state.draws=state.draws.filter(d=>d.contest!==contest); saveState(); render(); }
+function analyzeOne(){
+  const contest=byId('analysisContest').value;
+  if(!contest) return msg('msgAnalysis','Seleziona un concorso.',true);
+  const draw=state.draws.find(d=>d.contest===contest);
+  if(!draw) return msg('msgAnalysis','Estrazione non trovata.',true);
+  const plays=state.played.filter(p=>p.contest===contest);
+  if(!plays.length){ byId('analysisList').innerHTML=''; return msg('msgAnalysis','Nessuna giocata salvata per il concorso '+contest+'.',true); }
+  renderAnalysis([{draw,plays}]); msg('msgAnalysis','Analisi completata per il concorso '+contest+'.');
+}
+function analyzeAll(){
+  const groups=[]; state.draws.forEach(draw=>{ const plays=state.played.filter(p=>p.contest===draw.contest); if(plays.length) groups.push({draw,plays}); });
+  if(!groups.length){ byId('analysisList').innerHTML=''; return msg('msgAnalysis','Nessuna giocata associata a estrazioni presenti.',true); }
+  renderAnalysis(groups); msg('msgAnalysis','Analizzate '+groups.length+' estrazioni.');
+}
+function renderAnalysis(groups){
+  const host=byId('analysisList'); host.innerHTML='';
+  groups.forEach(g=>{
+    g.plays.forEach(p=>{
+      ensurePlayExtras(p);
+      const outcome=getPlayOutcome(p, g.draw);
+      const hits=outcome.hits;
+      const div=document.createElement('div'); div.className='item';
+      div.innerHTML='<div><strong>Concorso '+g.draw.contest+' · '+g.draw.date+'</strong><span class="tag">'+(p.source||'')+'</span></div>'
+        +'<div class="small" style="margin-top:8px">Giocata</div>'
+        +renderPlayBalls(p.numbers, hits)
+        +renderExtraBalls(p, g.draw)
+        +'<div class="small mono" style="margin-top:10px">Estratti: '+g.draw.numbers.join(' - ')+'</div>'
+        +'<div class="small" style="margin-top:6px">Jolly estratto: '+g.draw.jolly+' · SuperStar estratto: '+g.draw.superstar+'</div>'
+        +'<div style="margin-top:8px" class="'+(hits.length?'ok':'err')+'">Presi: '+hits.length+(hits.length?' · '+hits.join(' - '):'')+(outcome.jollyHit?' · Jolly preso':'')+(outcome.superstarHit?' · SuperStar preso':'')+'</div>';
+      host.appendChild(div);
+    });
+  });
+}
+function renderSystem(){
+  const sum=byId('systemSummary');
+  const list=byId('systemList');
+  if(!state.currentSystem){
+    sum.textContent='Nessun sistema creato.';
+    list.innerHTML='<div class="muted">Nessun sistema disponibile.</div>';
+    return;
+  }
+  const s=state.currentSystem;
+  const numsLine=s.base.join(' - ');
+  sum.innerHTML=''
+    +'<div><strong>'+s.mode+'</strong></div>'
+    +'<div class="small" style="margin-top:6px">Range valido rispettato: sì</div>'
+    +'<div class="small" style="margin-top:6px">Totale numeri: '+s.selectedCount+'</div>'
+    +'<div class="small" style="margin-top:6px">Sistema scelto: gruppi da '+s.target+'</div>'
+    +'<div class="small" style="margin-top:6px">Combinazioni integrali 6/6 possibili: '+s.integralRows+'</div>'
+    +'<div class="small" style="margin-top:6px">Filtri collegati: somma, pari/dispari, decine, consecutivi, finali, bassi/alti, mancanti del mese, coppie ricorrenti, fuzzy pair, vicini ±1/±2, heatmap zone dinamica</div>'
+    +'<div class="small" style="margin-top:6px">Heatmap: modalità '+(s.zoneMode||'OFF')+' · zone coperte '+(s.coveredZones||0)+' · max stessa zona '+(s.maxZone||0)+'</div>'
+    +'<div class="small mono" style="margin-top:6px">Mappa zone 3x3: '+((s.zoneMap||[]).join(' | ')||'-')+'</div>'
+    +'<div class="small" style="margin-top:6px">'+s.note+'</div>';
+
+  list.innerHTML='';
+  const div=document.createElement('div'); div.className='item mono';
+  div.innerHTML='<div><strong>Numeri da usare su Sisal</strong></div><div style="margin-top:6px">'+numsLine+'</div><div class="small" style="margin-top:8px">Su Sisal seleziona lo stesso sistema '+s.mode+' e poi questi stessi numeri.</div>';
+  list.appendChild(div);
+  byId('systemCopyBox').value=s.base.join(' ');
+}
+function renderSmartPicker(){
+  const cfg=smartMode();
+  const selected=state.smartPicker.selected || [];
+  byId('smartModeCaption').textContent=cfg.label;
+  byId('smartRangeTitle').textContent='Scegli da '+cfg.min+' a '+cfg.max+' numeri';
+  const pct=Math.min(100, Math.round((selected.length/cfg.max)*100));
+  byId('smartRangeBar').style.width=pct+'%';
+  byId('smartRangeText').textContent='Selezionati '+selected.length+' numeri';
+  byId('kpiSelected').textContent=String(selected.length);
+  byId('kpiTarget').textContent=String(cfg.target);
+  const est=estimateRows('INTEGRALE', selected.length);
+  byId('kpiRows').textContent=String(est);
+  byId('kpiCost').textContent=String(est);
+
+  const canBuild=selected.length>=cfg.min && selected.length<=cfg.max;
+  byId('btnSmartBuild').disabled=!canBuild;
+  byId('smartHintBox').textContent = canBuild
+    ? 'Pronto. Conferma e poi copia solo questi numeri. Il set è stato costruito con i filtri attivi.'
+    : 'Seleziona oppure genera da '+cfg.min+' a '+cfg.max+' numeri per '+state.smartPicker.mode+'.';
+
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active', b.dataset.mode===state.smartPicker.mode));
+  document.querySelectorAll('[data-mode-pill]').forEach(b=>b.classList.toggle('active', b.dataset.modePill===state.smartPicker.mode));
+
+  const grid=byId('smartNumberGrid');
+  if(!grid.dataset.ready){
+    for(let n=1;n<=90;n++){
+      const btn=document.createElement('button');
+      btn.className='num90';
+      btn.type='button';
+      btn.textContent=String(n);
+      btn.dataset.n=n;
+      btn.onclick=()=>toggleSmartNumber(n);
+      grid.appendChild(btn);
+    }
+    grid.dataset.ready='1';
+  }
+  grid.querySelectorAll('.num90').forEach(btn=>{
+    btn.classList.toggle('active', selected.includes(Number(btn.dataset.n)));
+  });
+}
+function render(){
+  byId('s_draws').textContent=String(state.draws.length);
+  byId('s_played').textContent=String(state.played.length);
+  byId('s_last').textContent=state.draws.length?('Concorso '+state.draws[0].contest+' · '+state.draws[0].date):'-';
+
+  byId('f_pool').value=state.settings.pool; byId('f_results').value=state.settings.results;
+  byId('f_sumMin').value=state.settings.sumMin; byId('f_sumMax').value=state.settings.sumMax;
+  byId('f_sameDec').value=state.settings.sameDec; byId('f_consec').value=state.settings.consec;
+  byId('f_sameEnd').value=state.settings.sameEnd; byId('f_minDecs').value=state.settings.minDecs;
+  byId('f_lowMin').value=state.settings.lowMin; byId('f_lowMax').value=state.settings.lowMax;
+  if(byId('f_zoneMode')) byId('f_zoneMode').value=state.settings.zoneMode || 'MORBIDO';
+  if(byId('f_zoneMax')) byId('f_zoneMax').value=state.settings.zoneMax ?? 2;
+  if(byId('f_zoneMinCovered')) byId('f_zoneMinCovered').value=state.settings.zoneMinCovered ?? 4;
+  if(byId('f_zoneRecent')) byId('f_zoneRecent').value=state.settings.zoneRecent ?? 18;
+  if(byId('f_shiftLearn')) byId('f_shiftLearn').value=state.settings.shiftLearn || 'ON';
+  if(byId('f_shiftBiasWeight')) byId('f_shiftBiasWeight').value=state.settings.shiftBiasWeight ?? 12;
+  if(byId('f_fuzzyWeight')) byId('f_fuzzyWeight').value=state.settings.fuzzyWeight ?? 2;
+  if(byId('f_ensembleDepth')) byId('f_ensembleDepth').value=state.settings.ensembleDepth ?? 3;
+  if(byId('f_mirrorMode')) byId('f_mirrorMode').value=state.settings.mirrorMode || 'ON';
+  if(byId('f_consensusCount')) byId('f_consensusCount').value=state.settings.consensusCount ?? 12;
+  if(byId('f_personalAvoid')) byId('f_personalAvoid').value=state.settings.personalAvoid || 'ON';
+  if(byId('f_imperfectRate')) byId('f_imperfectRate').value=state.settings.imperfectRate ?? 20;
+  byId('playContest').value=state.playContest || nextContest(); byId('playDate').value=state.playDate || '';
+  if(byId('manualContest')) byId('manualContest').value = byId('manualContest').value || state.latestCheckedContest || '';
+
+  const sel=byId('analysisContest');
+  sel.innerHTML='<option value="">Seleziona concorso</option>'+state.draws.map(d=>'<option value="'+d.contest+'">Concorso '+d.contest+' · '+d.date+'</option>').join('');
+
+  const gen=byId('generatedList');
+  gen.innerHTML=state.generated.length?'':'<div class="muted">Scegli quante sestine vuoi e premi Genera. Il motore decide da solo i parametri.</div>';
+  state.generated.forEach((g,idx)=>{
+    const div=document.createElement('div'); div.className='item';
+    const meta=g.meta||{};
+    div.innerHTML='<div><strong>Sestina '+(idx+1)+'</strong><span class="tag">PRONTA DA GIOCARE</span></div>'
+      +'<div class="mono" style="margin-top:8px;font-size:24px;font-weight:700">'+g.numbers.join(' - ')+'</div>'
+      +renderExtraBalls(g, null)
+      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · profilo: '+(meta.label||meta.variant||'base')+'</div>'
+      +'<div class="small" style="margin-top:4px">Modalità motore: '+((state.settings && state.settings.autoModeUsed) || 'balanced')+' · Questa è una delle sestine finali già selezionate dal motore.</div>';
+    gen.appendChild(div);
+  });
+
+  const ar=byId('absoluteReport');
+  if(ar){
+    const rep=state.absoluteReport || buildAbsoluteReport(personalErrorProfile(), learnedShiftDeltas(personalErrorProfile()), state.generated||[]);
+    const learnedTxt=(rep.learned||[]).length ? rep.learned.map(x=>((x.delta>0?'+':'')+x.delta)+' ('+x.count+')').join(' · ') : 'nessun pattern forte';
+    const consensusTxt=(rep.consensus||[]).slice(0, Math.max(6, state.settings.consensusCount||12)).map(x=>x.n).join(' - ');
+    ar.innerHTML='';
+    const c1=document.createElement('div'); c1.className='item';
+    c1.innerHTML='<div class="report-grid">'
+      +'<div class="report-card"><div class="big mono">'+(rep.profile?.samples||0)+'</div><div class="small">campioni errori letti</div></div>'
+      +'<div class="report-card"><div class="big mono">'+(rep.profile?.nearHits||0)+'</div><div class="small">near miss entro 3 punti</div></div>'
+      +'<div class="report-card"><div class="big mono">'+(rep.profile?.exactHits||0)+'</div><div class="small">colpi esatti storici</div></div>'
+      +'</div>';
+    const c2=document.createElement('div'); c2.className='item';
+    c2.innerHTML='<div><strong>Shift imparati</strong></div><div class="small" style="margin-top:6px">'+learnedTxt+'</div><div class="small" style="margin-top:8px">Il motore usa questi scostamenti per generare varianti adattive.</div>';
+    const auto=rep.autoTune||autoTuneFactors(rep.profile||{});
+    const c3=document.createElement('div'); c3.className='item';
+    c3.innerHTML='<div><strong>Auto-calibrazione attiva</strong></div><div class="small" style="margin-top:6px">Shift bias: '+auto.shiftBias.toFixed(2)+' · Fuzzy bias: '+auto.fuzzyBias.toFixed(2)+' · Penalità ripetizioni: '+auto.repeatPenalty.toFixed(2)+' · Drift: '+(auto.driftBias<0?'verso il basso':(auto.driftBias>0?'verso l\'alto':'neutro'))+'</div><div class="small" style="margin-top:8px">I pesi si regolano in base agli errori storici registrati nelle tue giocate.</div>';
+    const c4=document.createElement('div'); c4.className='item';
+    c4.innerHTML='<div><strong>Numeri consenso attuali</strong></div><div class="mono" style="margin-top:6px">'+(consensusTxt||'nessuno')+'</div>';
+    ar.appendChild(c1); ar.appendChild(c2); ar.appendChild(c3); ar.appendChild(c4);
+  }
+
+  const pl=byId('playedList');
+  pl.innerHTML=state.played.length?'':'<div class="muted">Nessuna giocata salvata.</div>';
+  state.played.forEach((p,idx)=>{
+    ensurePlayExtras(p);
+    const draw=getDrawByContest(p.contest);
+    const outcome=getPlayOutcome(p, draw);
+    const hits=outcome.hits;
+    const div=document.createElement('div'); div.className='item';
+    div.innerHTML='<div><strong>Concorso '+p.contest+'</strong><span class="tag">'+(p.source||'manuale')+'</span>'+(draw?'<span class="tag">estrazione presente</span>':'')+'</div>'
+      +(draw?'<div class="small" style="margin-top:4px">Data estrazione: '+draw.date+'</div>':'<div class="small muted" style="margin-top:4px">In attesa dell\'estrazione di questo concorso.</div>')
+      +'<div class="small" style="margin-top:8px">La tua sestina</div>'
+      +renderPlayBalls(p.numbers, hits)
+      +renderExtraBalls(p, draw)
+      +(draw?'<div class="small mono" style="margin-top:10px">Estratti: '+draw.numbers.join(' - ')+'</div>':'')
+      +(draw?'<div class="small" style="margin-top:6px">Jolly estratto: '+draw.jolly+' · SuperStar estratto: '+draw.superstar+'</div>':'')
+      +(draw?'<div class="small" style="margin-top:8px">Numeri presi: <strong>'+(hits.length?hits.join(' - '):'0')+'</strong>'+(outcome.jollyHit?' · <strong>Jolly</strong>':'')+(outcome.superstarHit?' · <strong>SuperStar</strong>':'')+'</div>':'')
+      +'<div class="row" style="margin-top:10px">'
+      +(hits.length?'<button class="btn-green" data-archive-play="'+idx+'">Archivia</button>':'')
+      +'<button class="btn-red" data-rm-play="'+idx+'">Cancella</button></div>';
+    pl.appendChild(div);
+  });
+  pl.querySelectorAll('[data-rm-play]').forEach(b=>b.onclick=()=>removePlayed(Number(b.dataset.rmPlay)));
+  pl.querySelectorAll('[data-archive-play]').forEach(b=>b.onclick=()=>archivePlayed(Number(b.dataset.archivePlay)));
+
+  const ah=byId('archivedHitsList');
+  ah.innerHTML=(state.archivedHits&&state.archivedHits.length)?'':'<div class="muted">Nessuna giocata archiviata con numeri presi.</div>';
+  (state.archivedHits||[]).forEach((a,idx)=>{
+    ensureArchivedExtras(a);
+    const div=document.createElement('div'); div.className='item archive-item-compact';
+    div.innerHTML='<div class="archive-item-top">'
+      +'<div class="archive-item-left">'
+      +'<div class="archive-item-title">Concorso '+a.contest+'</div>'
+      +'<div class="archive-item-date">'+(a.date||'-')+'</div>'
+      +'</div>'
+      +'<button class="archive-delete-btn" data-rm-arch="'+idx+'">X</button>'
+      +'</div>'
+      +renderPlayBalls(a.numbers, a.hits||[], true)+renderExtraBalls(a, null, true);
+    ah.appendChild(div);
+  });
+  ah.querySelectorAll('[data-rm-arch]').forEach(b=>b.onclick=()=>removeArchived(Number(b.dataset.rmArch)));
+
+  const dl=byId('drawsList');
+  dl.innerHTML=state.draws.length?'':'<div class="muted">Nessuna estrazione presente.</div>';
+  state.draws.forEach(d=>{
+    const div=document.createElement('div'); div.className='item';
+    div.innerHTML='<div><strong>Concorso '+d.contest+'</strong> <span class="badge">'+d.origin+'</span></div>'
+      +'<div class="small" style="margin-top:4px">'+d.date+'</div>'
+      +'<div class="mono" style="margin-top:6px">'+d.numbers.join(' - ')+'</div>'
+      +'<div class="small" style="margin-top:6px">Jolly: '+d.jolly+' · SuperStar: '+d.superstar+'</div>'
+      +'<div class="row" style="margin-top:8px"><button class="btn-red" data-rm-draw="'+d.contest+'">Cancella</button></div>';
+    dl.appendChild(div);
+  });
+  dl.querySelectorAll('[data-rm-draw]').forEach(b=>b.onclick=()=>removeDraw(b.dataset.rmDraw));
+
+  renderSmartPicker();
+  syncSmartAutoCount();
+  renderSystem();
+}
+
+function toggleSystemBox(){
+  const box = byId('mooni_system_box');
+  const btn = byId('btnToggleSystem');
+  if(!box || !btn) return;
+  const opening = box.style.display === 'none' || !box.style.display;
+  box.style.display = opening ? 'block' : 'none';
+  btn.textContent = opening ? 'Chiudi sistema avanzato' : 'Crea sistema avanzato';
+  if(opening) box.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function bind(){
+  byId('btnImportTxt').onclick=async()=>{
+    const f=byId('txtFile').files[0]; if(!f) return msg('msgImport','Scegli prima un file TXT.',true);
+    try{ importTxt(await f.text()); } catch(e){ msg('msgImport','Errore nel file TXT: '+e.message,true); }
+  };
+  byId('btnExportJson').onclick=exportJson;
+  byId('btnImportJson').onclick=async()=>{
+    const f=byId('jsonFile').files[0]; if(!f) return msg('msgImport','Scegli prima un backup JSON.',true);
+    try{ importJson(await f.text()); } catch(e){ msg('msgImport','Backup JSON non valido.',true); }
+  };
+  byId('btnResetAll').onclick=()=>{ if(confirm('Vuoi cancellare tutto?')) resetState(); };
+  byId('btnFillNext').onclick=prefillNext;
+  byId('btnUseNext').onclick=()=>{ byId('playContest').value=nextContest(); state.playContest=nextContest(); saveState(); render(); };
+  byId('btnSaveDraw').onclick=saveDraw;
+  byId('btnSaveManualPlays').onclick=saveManualHistoricalPlays;
+  byId('btnManualUseSelectedDraw').onclick=useSelectedDrawForManual;
+  byId('btnClearManualPlays').onclick=()=>{ byId('manualPlaysBox').value=''; msg('msgManualPlays','Riquadro pulito.',false); };
+  byId('btnGenerate').onclick=generate;
+  byId('btnMarkPlayed').onclick=markPlayed;
+  if(byId('btnToggleSystem')) byId('btnToggleSystem').onclick=toggleSystemBox;
+  if(byId('btnExportArchivedHits')) byId('btnExportArchivedHits').onclick=exportArchivedHitsCSV;
+  byId('btnAnalyzeOne').onclick=analyzeOne;
+  byId('btnAnalyzeAll').onclick=analyzeAll;
+  byId('btnSmartClear').onclick=clearSmartNumbers;
+  byId('btnSmartBuild').onclick=buildSmartSystem;
+  byId('btnSmartAutoPick').onclick=autoPickSmartNumbers;
+  byId('btnSmartAutoPick2').onclick=autoPickSmartNumbers;
+  byId('btnCopySystemNumbers').onclick=copySystemNumbers;
+  byId('btnCopySystemLine').onclick=copySystemLine;
+  byId('btnResetSmartSystem').onclick=resetSmartSystem;
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setSmartMode(b.dataset.mode));
+  document.querySelectorAll('[data-mode-pill]').forEach(b=>b.onclick=()=>setSmartMode(b.dataset.modePill));
+  window.addEventListener('beforeunload', saveState);
+}
+loadState();
+document.addEventListener('DOMContentLoaded',()=>{ bind(); render(); prefillNext(); });
+
+// ==========================
+// 🧠 SUPER LEARNING ENGINE DEFINITIVO
+// ==========================
+function ensureLearningState(){
+  if(!state.learning){
+    state.learning = {
+      numberScore:{},
+      pairScore:{},
+      nearMissScore:{},
+      patternScore:{lowHigh:{}, parity:{}, sumRange:{}},
+      monthlyMemory:{},
+      antiBias:{},
+      historyDepth:0,
+      lastUpdate:null
+    };
+  }
+  if(!state.learning.numberScore) state.learning.numberScore = {};
+  if(!state.learning.pairScore) state.learning.pairScore = {};
+  if(!state.learning.nearMissScore) state.learning.nearMissScore = {};
+  if(!state.learning.patternScore) state.learning.patternScore = {lowHigh:{}, parity:{}, sumRange:{}};
+  if(!state.learning.monthlyMemory) state.learning.monthlyMemory = {};
+  if(!state.learning.antiBias) state.learning.antiBias = {};
+  if(typeof state.learning.historyDepth !== 'number') state.learning.historyDepth = 0;
+  if(!('lastUpdate' in state.learning)) state.learning.lastUpdate = null;
+}
+ensureLearningState();
+
+function AI_learn_draw(draw){
+  ensureLearningState();
+  if(!draw || !Array.isArray(draw.numbers)) return;
+
+  const L = state.learning;
+  const nums = draw.numbers.slice().filter(Number.isInteger);
+  const month = (draw.date || '').slice(0,7) || 'unknown';
+
+  if(!L.monthlyMemory[month]) L.monthlyMemory[month] = {count:0, numbers:{}};
+
+  nums.forEach(n=>{
+    L.numberScore[n] = (L.numberScore[n] || 0) + 2.25;
+    L.monthlyMemory[month].numbers[n] = (L.monthlyMemory[month].numbers[n] || 0) + 1;
+  });
+
+  for(let n=1;n<=90;n++){
+    if(!nums.includes(n)){
+      L.numberScore[n] = (L.numberScore[n] || 0) - 0.12;
+    }
+  }
+
+  for(let i=0;i<nums.length;i++){
+    for(let j=i+1;j<nums.length;j++){
+      const a = Math.min(nums[i], nums[j]);
+      const b = Math.max(nums[i], nums[j]);
+      const k = a + '-' + b;
+      L.pairScore[k] = (L.pairScore[k] || 0) + 1.4;
+    }
+  }
+
+  const low = nums.filter(n=>n<=45).length;
+  const even = nums.filter(n=>n%2===0).length;
+  const sum = nums.reduce((a,b)=>a+b,0);
+  const bucket = Math.floor(sum/10)*10;
+
+  L.patternScore.lowHigh[low] = (L.patternScore.lowHigh[low] || 0) + 1;
+  L.patternScore.parity[even] = (L.patternScore.parity[even] || 0) + 1;
+  L.patternScore.sumRange[bucket] = (L.patternScore.sumRange[bucket] || 0) + 1;
+
+  L.monthlyMemory[month].count++;
+  L.historyDepth++;
+  L.lastUpdate = Date.now();
+}
+
+function AI_learn_played(){
+  ensureLearningState();
+
+  const L = state.learning;
+  const drawMap = new Map((state.draws||[]).map(d=>[String(d.contest), d]));
+
+  (state.played||[]).forEach(p=>{
+    const draw = drawMap.get(String(p.contest));
+    if(!draw || !Array.isArray(p.numbers) || !Array.isArray(draw.numbers)) return;
+
+    const hits = p.numbers.filter(n=>draw.numbers.includes(n));
+
+    if(hits.length >= 2){
+      hits.forEach(n=>{
+        L.nearMissScore[n] = (L.nearMissScore[n] || 0) + 1.3;
+      });
+    }
+
+    if(hits.length === 0){
+      p.numbers.forEach(n=>{
+        L.numberScore[n] = (L.numberScore[n] || 0) - 0.18;
+      });
+    }
+
+    p.numbers.forEach(n=>{
+      L.antiBias[n] = (L.antiBias[n] || 0) + 1;
+    });
+  });
+
+  L.lastUpdate = Date.now();
+}
+
+function AI_antiBias(n){
+  ensureLearningState();
+  const f = state.learning.antiBias[n] || 0;
+  return -Math.min(3.2, f * 0.028);
+}
+
+function AI_monthBoost(n){
+  ensureLearningState();
+  const m = (state.draws[0]?.date || '').slice(0,7);
+  const mem = state.learning.monthlyMemory[m];
+  if(!mem) return 0;
+  return (mem.numbers[n] || 0) * 0.26;
+}
+
+function AI_normalize(){
+  ensureLearningState();
+  const L = state.learning;
+
+  Object.keys(L.numberScore).forEach(n=>{
+    L.numberScore[n] *= 0.985;
+  });
+  Object.keys(L.pairScore).forEach(k=>{
+    L.pairScore[k] *= 0.992;
+  });
+  Object.keys(L.nearMissScore).forEach(n=>{
+    L.nearMissScore[n] *= 0.98;
+  });
+}
+
+const __AI_oldSaveDraw = saveDraw;
+saveDraw = function(){
+  __AI_oldSaveDraw();
+  ensureLearningState();
+  const last = state.draws[0];
+  AI_learn_draw(last);
+  AI_learn_played();
+  saveState();
+  render();
+};
+
+const __AI_oldMarkPlayed = markPlayed;
+markPlayed = function(){
+  __AI_oldMarkPlayed();
+  ensureLearningState();
+  AI_learn_played();
+  saveState();
+};
+
+const __AI_oldGenerate = generate;
+generate = function(){
+  ensureLearningState();
+  AI_normalize();
+  __AI_oldGenerate();
+};
+
+const __AI_oldEvaluateCombo = evaluateCombo;
+evaluateCombo = function(nums, ...rest){
+  ensureLearningState();
+  const res = __AI_oldEvaluateCombo(nums, ...rest);
+  const L = state.learning;
+  let s = 0;
+
+  nums.forEach(n=>{
+    s += (L.numberScore[n] || 0);
+    s += (L.nearMissScore[n] || 0) * 0.45;
+    s += AI_monthBoost(n);
+    s += AI_antiBias(n);
+  });
+
+  for(let i=0;i<nums.length;i++){
+    for(let j=i+1;j<nums.length;j++){
+      const a = Math.min(nums[i], nums[j]);
+      const b = Math.max(nums[i], nums[j]);
+      const k = a + '-' + b;
+      s += (L.pairScore[k] || 0) * 0.28;
+    }
+  }
+
+  const low = nums.filter(n=>n<=45).length;
+  const even = nums.filter(n=>n%2===0).length;
+  const sum = nums.reduce((a,b)=>a+b,0);
+  const bucket = Math.floor(sum/10)*10;
+
+  s += (L.patternScore.lowHigh[low] || 0) * 0.22;
+  s += (L.patternScore.parity[even] || 0) * 0.22;
+  s += (L.patternScore.sumRange[bucket] || 0) * 0.16;
+
+  const exp = Math.min(1.1, (L.historyDepth || 0) / 650);
+
+  res.score += s * (0.035 + exp);
+
+  return res;
+};
+
+</script>
+</body>
+</html>
