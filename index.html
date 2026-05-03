@@ -2058,26 +2058,39 @@ evaluateCombo = function(nums, ...rest){
 
 </script>
 <script type="module">
-  // Import Firebase
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
-  // Config Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyD-Xlk7L5P_BVwfedSTpVgD_udfMO0m9Mk",
-    authDomain: "super6-da756.firebaseapp.com",
-    projectId: "super6-da756",
-    storageBucket: "super6-da756.firebasestorage.app",
-    messagingSenderId: "465162407478",
-    appId: "1:465162407478:web:25442ee4bf5e71e7f71297",
-    measurementId: "G-6N3S5C7LT1"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyD-XlX7L5P_BWvfedSTpVgD_udfM00m9Mk",
+  authDomain: "super6-da756.firebaseapp.com",
+  projectId: "super6-da756",
+  storageBucket: "super6-da756.firebasestorage.app",
+  messagingSenderId: "465162407478",
+  appId: "1:465162407478:web:25442ee4bf5e71e7f71297",
+  measurementId: "G-6N3S5C7LT1"
+};
 
-  // Inizializza Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+// Init
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  console.log("Firebase collegato ✅");
-</script>  
+// 🔥 TEST SALVATAGGIO
+window.salvaTest = async function() {
+  await addDoc(collection(db, "test"), {
+    nome: "Nunzio",
+    data: new Date()
+  });
+  alert("Salvato su Firebase!");
+}
+
+// 🔥 TEST LETTURA
+window.leggiTest = async function() {
+  const querySnapshot = await getDocs(collection(db, "test"));
+  querySnapshot.forEach((doc) => {
+    console.log(doc.data());
+  });
+}
+</script>
 </body>
 </html>
