@@ -2091,6 +2091,22 @@ window.leggiTest = async function() {
     console.log(doc.data());
   });
 }
+window.salvaTest = async function() {
+  try {
+    const { getFirestore, collection, addDoc } = await import("https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js");
+
+    const db = getFirestore();
+
+    await addDoc(collection(db, "test"), {
+      messaggio: "ciao Nunzio 🔥",
+      data: new Date()
+    });
+
+    console.log("Salvato su Firebase!");
+  } catch (e) {
+    console.error("Errore Firebase:", e);
+  }
+};  
 </script>
 </body>
 </html>
