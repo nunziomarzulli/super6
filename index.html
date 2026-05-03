@@ -448,6 +448,14 @@ let state=emptyState();
 function saveState(){
   try{
     localStorage.setItem(KEY, JSON.stringify(state));
+import { getFirestore, setDoc, doc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+const db = getFirestore();
+
+setDoc(doc(db, "super6", "stato"), {
+  data: state,
+  updatedAt: new Date()
+});    
     return true;
   }catch(e){
     msg('msgImport','Errore salvataggio locale: memoria browser piena.',true);
