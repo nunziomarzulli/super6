@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v33 Definitivo AI</title>
+  <title>Super6plus v35 Definitivo AI</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -134,7 +134,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v33 Definitivo AI</h1>
+  <h1>Super6plus v35 Definitivo AI</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -1234,8 +1234,9 @@ function buildShiftVariants(nums, learned, mirrorMode){
 
 function aiWindowDraws(kind){
   const draws=state.draws||[];
-  if(kind==='short') return draws.slice(0, Math.min(60, draws.length));
-  if(kind==='medium') return draws.slice(0, Math.min(180, draws.length));
+  if(kind==='w30' || kind==='short') return draws.slice(0, Math.min(30, draws.length));
+  if(kind==='w90') return draws.slice(0, Math.min(90, draws.length));
+  if(kind==='w180' || kind==='medium') return draws.slice(0, Math.min(180, draws.length));
   return draws;
 }
 function aiFreqMap(draws){
@@ -1274,53 +1275,62 @@ function aiNormFreq(freq, drawsCount){
   return out;
 }
 function aiMultiPeriodContext(){
-  const shortD=aiWindowDraws('short');
-  const mediumD=aiWindowDraws('medium');
+  const d30=aiWindowDraws('w30');
+  const d90=aiWindowDraws('w90');
+  const d180=aiWindowDraws('w180');
   const allD=aiWindowDraws('all');
-  const sf=aiNormFreq(aiFreqMap(shortD), shortD.length||1);
-  const mf=aiNormFreq(aiFreqMap(mediumD), mediumD.length||1);
+  const f30=aiNormFreq(aiFreqMap(d30), d30.length||1);
+  const f90=aiNormFreq(aiFreqMap(d90), d90.length||1);
+  const f180=aiNormFreq(aiFreqMap(d180), d180.length||1);
   const af=aiNormFreq(aiFreqMap(allD), allD.length||1);
   const numScore=Array(91).fill(0);
   for(let n=1;n<=90;n++){
-    numScore[n]=(sf[n]*0.66)+(mf[n]*0.24)+(af[n]*0.10);
+    numScore[n]=(f30[n]*0.35)+(f90[n]*0.30)+(f180[n]*0.25)+(af[n]*0.10);
   }
+  const p30=aiPairMap(d30), p90=aiPairMap(d90), p180=aiPairMap(d180), pall=aiPairMap(allD);
+  const t30=aiComboMap(d30,3), t90=aiComboMap(d90,3), t180=aiComboMap(d180,3), tall=aiComboMap(allD,3);
+  const q30=aiComboMap(d30,4), q90=aiComboMap(d90,4), q180=aiComboMap(d180,4), qall=aiComboMap(allD,4);
+  const qi30=aiComboMap(d30,5), qi90=aiComboMap(d90,5), qi180=aiComboMap(d180,5), qiall=aiComboMap(allD,5);
+  const s30=aiComboMap(d30,6), s90=aiComboMap(d90,6), s180=aiComboMap(d180,6), sall=aiComboMap(allD,6);
   return {
-    shortPairs:aiPairMap(shortD),
-    mediumPairs:aiPairMap(mediumD),
-    allPairs:aiPairMap(allD),
-    shortTrios:aiComboMap(shortD,3),
-    mediumTrios:aiComboMap(mediumD,3),
-    allTrios:aiComboMap(allD,3),
-    shortQuads:aiComboMap(shortD,4),
-    mediumQuads:aiComboMap(mediumD,4),
-    allQuads:aiComboMap(allD,4),
-    shortQuints:aiComboMap(shortD,5),
-    mediumQuints:aiComboMap(mediumD,5),
-    allQuints:aiComboMap(allD,5),
-    shortSixes:aiComboMap(shortD,6),
-    mediumSixes:aiComboMap(mediumD,6),
-    allSixes:aiComboMap(allD,6),
+    d30,d90,d180,allD,
+    pairs30:p30,pairs90:p90,pairs180:p180,pairsAll:pall,
+    trios30:t30,trios90:t90,trios180:t180,triosAll:tall,
+    quads30:q30,quads90:q90,quads180:q180,quadsAll:qall,
+    quints30:qi30,quints90:qi90,quints180:qi180,quintsAll:qiall,
+    sixes30:s30,sixes90:s90,sixes180:s180,sixesAll:sall,
+    shortPairs:p30, mediumPairs:p180, allPairs:pall,
+    shortTrios:t30, mediumTrios:t180, allTrios:tall,
+    shortQuads:q30, mediumQuads:q180, allQuads:qall,
+    shortQuints:qi30, mediumQuints:qi180, allQuints:qiall,
+    shortSixes:s30, mediumSixes:s180, allSixes:sall,
     numScore,
-    shortCount:shortD.length,
-    mediumCount:mediumD.length,
-    allCount:allD.length
+    count30:d30.length, count90:d90.length, count180:d180.length,
+    shortCount:d30.length, mediumCount:d180.length, allCount:allD.length
   };
 }
 function aiPairWeightedValue(a,b,ctx){
   const k=Math.min(a,b)+'-'+Math.max(a,b);
-  const s=(ctx.shortPairs.get(k)||0)/Math.max(1,ctx.shortCount);
-  const m=(ctx.mediumPairs.get(k)||0)/Math.max(1,ctx.mediumCount);
-  const h=(ctx.allPairs.get(k)||0)/Math.max(1,ctx.allCount);
-  return (s*0.66)+(m*0.24)+(h*0.10);
+  const v30=((ctx.pairs30||ctx.shortPairs||new Map()).get(k)||0)/Math.max(1,ctx.count30||ctx.shortCount||1);
+  const v90=((ctx.pairs90||new Map()).get(k)||0)/Math.max(1,ctx.count90||1);
+  const v180=((ctx.pairs180||ctx.mediumPairs||new Map()).get(k)||0)/Math.max(1,ctx.count180||ctx.mediumCount||1);
+  const vall=((ctx.pairsAll||ctx.allPairs||new Map()).get(k)||0)/Math.max(1,ctx.allCount||1);
+  return (v30*0.35)+(v90*0.30)+(v180*0.25)+(vall*0.10);
 }
 function aiHigherWeightedValue(key,k,ctx){
-  const names={3:['shortTrios','mediumTrios','allTrios'],4:['shortQuads','mediumQuads','allQuads'],5:['shortQuints','mediumQuints','allQuints'],6:['shortSixes','mediumSixes','allSixes']};
+  const names={
+    3:['trios30','trios90','trios180','triosAll'],
+    4:['quads30','quads90','quads180','quadsAll'],
+    5:['quints30','quints90','quints180','quintsAll'],
+    6:['sixes30','sixes90','sixes180','sixesAll']
+  };
   const ref=names[k];
   if(!ref) return 0;
-  const s=((ctx[ref[0]]||new Map()).get(key)||0)/Math.max(1,ctx.shortCount);
-  const m=((ctx[ref[1]]||new Map()).get(key)||0)/Math.max(1,ctx.mediumCount);
-  const h=((ctx[ref[2]]||new Map()).get(key)||0)/Math.max(1,ctx.allCount);
-  return (s*0.66)+(m*0.24)+(h*0.10);
+  const v30=((ctx[ref[0]]||new Map()).get(key)||0)/Math.max(1,ctx.count30||1);
+  const v90=((ctx[ref[1]]||new Map()).get(key)||0)/Math.max(1,ctx.count90||1);
+  const v180=((ctx[ref[2]]||new Map()).get(key)||0)/Math.max(1,ctx.count180||1);
+  const vall=((ctx[ref[3]]||new Map()).get(key)||0)/Math.max(1,ctx.allCount||1);
+  return (v30*0.35)+(v90*0.30)+(v180*0.25)+(vall*0.10);
 }
 function aiHigherOrderScore(nums,ctx){
   let score=0;
@@ -1347,6 +1357,66 @@ function aiComboPeriodScore(nums,ctx){
   return Math.round(((numberScore/6)*18 + Math.min(18,pairScore) + highScore)*100)/100;
 }
 
+function aiWindowStatsForNums(nums,draws){
+  const freq=countNumberFrequency(draws||[]);
+  const maxFreq=Math.max(1,...Object.values(freq));
+  const heat=Math.round((nums.reduce((a,n)=>a+(freq[n]||0),0)/6)/maxFreq*100);
+  const out={heat, ambi:0, ambiHits:0, terni:0, terniHits:0, quaterne:0, quaterneHits:0, cinquine:0, cinquineHits:0, sestina:0};
+  [2,3,4,5,6].forEach(k=>{
+    const rows=manualComboRows(nums,draws,k);
+    const seen=rows.filter(r=>r.v>0).length;
+    const hits=rows.reduce((a,r)=>a+r.v,0);
+    if(k===2){ out.ambi=seen; out.ambiHits=hits; }
+    if(k===3){ out.terni=seen; out.terniHits=hits; }
+    if(k===4){ out.quaterne=seen; out.quaterneHits=hits; }
+    if(k===5){ out.cinquine=seen; out.cinquineHits=hits; }
+    if(k===6){ out.sestina=hits; }
+  });
+  return out;
+}
+function aiDynamicCompatibility(nums,ctx){
+  if(!ctx) ctx=aiMultiPeriodContext();
+  const windows=[
+    {key:'w30', label:'30', weight:0.35, draws:ctx.d30||aiWindowDraws('w30')},
+    {key:'w90', label:'90', weight:0.30, draws:ctx.d90||aiWindowDraws('w90')},
+    {key:'w180', label:'180', weight:0.25, draws:ctx.d180||aiWindowDraws('w180')},
+    {key:'all', label:'Storico', weight:0.10, draws:ctx.allD||aiWindowDraws('all')}
+  ];
+  let finalScore=0;
+  const detail=[];
+  windows.forEach(w=>{
+    const st=aiWindowStatsForNums(nums,w.draws);
+    const sum=nums.reduce((a,b)=>a+b,0);
+    const even=nums.filter(n=>n%2===0).length;
+    let score = 0;
+    score += st.heat*0.22;
+    score += Math.min(24, st.ambiHits*0.75 + st.ambi*1.15);
+    score += Math.min(24, st.terniHits*4.50 + st.terni*4.00);
+    score += Math.min(10, st.quaterneHits*6.00 + st.quaterne*4.00);
+    score += Math.min(4, st.cinquineHits*4.00 + st.cinquine*2.00);
+    score += (st.sestina ? -22 : 5);
+    score += (sum>=110 && sum<=260) ? 8 : 0;
+    score += ([2,3,4].includes(even)) ? 6 : 0;
+    score += countSameDec(nums)<=3 ? 5 : -6;
+    score += maxConsec(nums)<=2 ? 4 : -4;
+    score=Math.max(0,Math.min(100,Math.round(score)));
+    finalScore += score*w.weight;
+    detail.push({...w, ...st, score});
+  });
+  const rounded=Math.round(finalScore);
+  let label='Debole';
+  if(rounded>=82) label='Premium';
+  else if(rounded>=70) label='Forte';
+  else if(rounded>=58) label='Discreta';
+  return {score:rounded,label,detail};
+}
+function aiDynamicQualityClass(score){
+  if(score>=82) return 'PREMIUM';
+  if(score>=70) return 'FORTE';
+  if(score>=58) return 'DISCRETA';
+  return 'DEBOLE';
+}
+
 function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
   if(opts===undefined && errorProfile && !Array.isArray(errorProfile) && typeof errorProfile==='object' && ('allowImperfect' in errorProfile || 'shiftVariant' in errorProfile)){
     opts=errorProfile; errorProfile=null; learned=[];
@@ -1369,6 +1439,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   const adaptiveHits=nearHitsToReference(nums, latestDraw, [1,2,3]);
   const learnedHits=learnedCoverage(nums, latestDraw, learned||[]);
   const periodScore=aiComboPeriodScore(nums, periodCtx);
+  const dynCompat=aiDynamicCompatibility(nums, periodCtx);
   const repeatPenaltyValue=repeatedPenalty(nums, errorProfile||{});
   const stats={
     sum,
@@ -1390,7 +1461,9 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     zoneBase,
     zoneDir,
     parityOk:parityOk(nums),
-    periodScore
+    periodScore,
+    dynCompatScore:dynCompat.score,
+    dynCompatLabel:dynCompat.label
   };
   let penalty=0;
   if(!stats.parityOk) penalty+=14;
@@ -1408,6 +1481,8 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   if(!zoneRulePasses(nums,f)) penalty+=10;
   if(stats.nearLatest===0) penalty+=6;
   if(stats.periodScore<9) penalty+=6;
+  if(stats.dynCompatScore<58) penalty+=12;
+  else if(stats.dynCompatScore<70) penalty+=4;
   if(stats.nearLatestWide===0) penalty+=4;
   penalty += stats.repeatPenalty * (f.personalAvoid==='ON' ? 2.6 * tuned.repeatPenalty : 0);
   const bonus =
@@ -1422,6 +1497,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     ((stats.missCount>=1&&stats.missCount<=2)?7:0) +
     ((opts.shiftVariant)?8:0) +
     (stats.periodScore*1.15) +
+    (stats.dynCompatScore*0.55) +
     ((tuned.driftBias<0 && nums.some(n=>n>1))?1.2:0) +
     ((tuned.driftBias>0 && nums.some(n=>n<90))?1.2:0);
   const score = Math.round((120 - penalty + bonus)*100)/100;
@@ -1429,11 +1505,13 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
 }
 function comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
   const info=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,opts);
-  if(opts.allowImperfect) return info.score>=124;
+  const dyn=info.dynCompatScore || 0;
+  if(opts.allowImperfect) return info.score>=142 && dyn>=58;
   if(info.penalty>0) return false;
-  if(info.nearLatest===0 && info.nearLatestWide<2 && info.learnedHits<1) return false;
-  if(info.fuzzy<1 && info.learnedHits<1) return false;
-  return info.score>=132;
+  if(dyn<65) return false;
+  if(info.nearLatest===0 && info.nearLatestWide<2 && info.learnedHits<1 && dyn<72) return false;
+  if(info.fuzzy<1 && info.learnedHits<1 && dyn<72) return false;
+  return info.score>=156;
 }
 function buildCandidateCombos(sampleSize=12000){
   const f=settings();
@@ -2133,6 +2211,7 @@ function analyzePatternNums(){
   });
 
   const exactAlready = rowsByK[6][0]?.v || 0;
+  const dyn = aiDynamicCompatibility(nums, aiMultiPeriodContext());
   const realism = Math.max(0, Math.min(100, Math.round(
     heatPct*0.30 +
     Math.min(22,totalHitsByK[2]*0.55) +
@@ -2166,6 +2245,7 @@ function analyzePatternNums(){
     '<div class="small" style="margin-top:8px">Indice compatibilità completo: <strong>'+realism+'/100</strong></div>'+
     '<div class="small">Somma: '+sum+' · Pari/dispari: '+even+'/'+(6-even)+' · Consecutivi max: '+consecutive+' · Max stessa decina: '+sameDec+'</div>'+
     '<div class="small" style="margin-top:8px">Calore medio numeri: '+heatPct+'% · Ambi visti: '+strongByK[2]+' · Terni visti: '+strongByK[3]+' · Quaterne viste: '+strongByK[4]+' · Cinquine viste: '+strongByK[5]+' · Sestina già uscita: '+(exactAlready?'SÌ':'NO')+'</div>'+
+    '<div class="pattern-block"><h4>Compatibilità dinamica multi-finestra</h4><div class="pattern-mini-grid"><div class="pattern-mini"><div class="v">'+dyn.score+'/100</div><div class="l">indice finale</div></div><div class="pattern-mini"><div class="v">'+dyn.label+'</div><div class="l">classe AI</div></div></div><table class="pattern-table"><thead><tr><th>Finestra</th><th>Score</th><th>Ambi</th><th>Terni</th><th>Quaterne</th><th>Cinquine</th></tr></thead><tbody>'+dyn.detail.map(d=>'<tr><td>'+d.label+'</td><td>'+d.score+'/100</td><td>'+d.ambi+' / '+d.ambiHits+'</td><td>'+d.terni+' / '+d.terniHits+'</td><td>'+d.quaterne+' / '+d.quaterneHits+'</td><td>'+d.cinquine+' / '+d.cinquineHits+'</td></tr>').join('')+'</tbody></table></div>'+
     [2,3,4,5,6].map(tableForK).join('');
   msg('msgPattern','Analisi completa su ambi, terni, quaterne, cinquine e sestina: '+nums.join('-')+'.');
 }
@@ -2206,7 +2286,7 @@ function render(){
     div.innerHTML='<div><strong>Sestina '+(idx+1)+'</strong><span class="tag">PRONTA DA GIOCARE</span></div>'
       +'<div class="mono" style="margin-top:8px;font-size:24px;font-weight:700">'+g.numbers.join(' - ')+'</div>'
       +renderExtraBalls(g, null)
-      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · profilo: '+(meta.label||meta.variant||'base')+'</div>'
+      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · compatibilità dinamica: '+(meta.dynCompatScore??'-')+'/100 · profilo: '+(meta.label||meta.variant||'base')+'</div>'
       +'<div class="small" style="margin-top:4px">Modalità motore: '+((state.settings && state.settings.autoModeUsed) || 'balanced')+' · Questa è una delle sestine finali già selezionate dal motore.</div>';
     gen.appendChild(div);
   });
