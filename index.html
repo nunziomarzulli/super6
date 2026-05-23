@@ -115,6 +115,12 @@
     .pattern-kpi{background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:12px}
     .pattern-kpi .v{font-size:22px;font-weight:800}
     .pair-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#203963;color:#dfeaff;font-size:12px;font-weight:700}
+    .pattern-block{margin-top:10px;background:#102852;border:1px solid #29446f;border-radius:14px;padding:10px}
+    .pattern-block h4{margin:0 0 8px;font-size:14px;color:#eef4ff}
+    .pattern-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+    .pattern-mini{background:#0a1836;border:1px solid #29446f;border-radius:12px;padding:9px}
+    .pattern-mini .v{font-weight:800;font-size:18px}
+    .pattern-mini .l{font-size:11px;color:#a9b9d8}
     @media (max-width:900px){
       .heatmap90{grid-template-columns:repeat(5,1fr)}
       .pattern-kpis{grid-template-columns:1fr 1fr}
@@ -463,9 +469,10 @@
         <div class="heatmap90" id="heatmap90"></div>
       </div>
       <div>
-        <h3>Top ambi</h3>
+        <h3>Pattern ricorrenti</h3>
         <div id="topPairsBox" class="item" style="margin-top:12px"></div>
-        <h3 style="margin-top:14px">Analisi sestina</h3>
+        <div id="topHighOrderBox" class="item" style="margin-top:12px"></div>
+        <h3 style="margin-top:14px">Analisi sestina completa</h3>
         <div id="manualPatternBox" class="item">Inserisci una sestina e premi Analizza.</div>
       </div>
     </div>
@@ -1249,6 +1256,15 @@ function aiPairMap(draws){
   });
   return map;
 }
+function aiComboMap(draws,k){
+  const map=new Map();
+  (draws||[]).forEach(d=>{
+    comboKeysFromNums(d.numbers||[],k).forEach(key=>{
+      map.set(key,(map.get(key)||0)+1);
+    });
+  });
+  return map;
+}
 function aiNormFreq(freq, drawsCount){
   const out=Array(91).fill(0);
   const expected=Math.max(1, drawsCount*6/90);
@@ -1272,6 +1288,18 @@ function aiMultiPeriodContext(){
     shortPairs:aiPairMap(shortD),
     mediumPairs:aiPairMap(mediumD),
     allPairs:aiPairMap(allD),
+    shortTrios:aiComboMap(shortD,3),
+    mediumTrios:aiComboMap(mediumD,3),
+    allTrios:aiComboMap(allD,3),
+    shortQuads:aiComboMap(shortD,4),
+    mediumQuads:aiComboMap(mediumD,4),
+    allQuads:aiComboMap(allD,4),
+    shortQuints:aiComboMap(shortD,5),
+    mediumQuints:aiComboMap(mediumD,5),
+    allQuints:aiComboMap(allD,5),
+    shortSixes:aiComboMap(shortD,6),
+    mediumSixes:aiComboMap(mediumD,6),
+    allSixes:aiComboMap(allD,6),
     numScore,
     shortCount:shortD.length,
     mediumCount:mediumD.length,
@@ -1285,6 +1313,25 @@ function aiPairWeightedValue(a,b,ctx){
   const h=(ctx.allPairs.get(k)||0)/Math.max(1,ctx.allCount);
   return (s*0.66)+(m*0.24)+(h*0.10);
 }
+function aiHigherWeightedValue(key,k,ctx){
+  const names={3:['shortTrios','mediumTrios','allTrios'],4:['shortQuads','mediumQuads','allQuads'],5:['shortQuints','mediumQuints','allQuints'],6:['shortSixes','mediumSixes','allSixes']};
+  const ref=names[k];
+  if(!ref) return 0;
+  const s=((ctx[ref[0]]||new Map()).get(key)||0)/Math.max(1,ctx.shortCount);
+  const m=((ctx[ref[1]]||new Map()).get(key)||0)/Math.max(1,ctx.mediumCount);
+  const h=((ctx[ref[2]]||new Map()).get(key)||0)/Math.max(1,ctx.allCount);
+  return (s*0.66)+(m*0.24)+(h*0.10);
+}
+function aiHigherOrderScore(nums,ctx){
+  let score=0;
+  const weights={3:140,4:250,5:420,6:-600};
+  [3,4,5,6].forEach(k=>{
+    comboKeysFromNums(nums,k).forEach(key=>{
+      score += aiHigherWeightedValue(key,k,ctx) * weights[k];
+    });
+  });
+  return Math.max(-12, Math.min(20, score));
+}
 function aiComboPeriodScore(nums,ctx){
   if(!ctx) ctx=aiMultiPeriodContext();
   let numberScore=0;
@@ -1296,7 +1343,8 @@ function aiComboPeriodScore(nums,ctx){
       pairScore += aiPairWeightedValue(s[i],s[j],ctx)*100;
     }
   }
-  return Math.round(((numberScore/6)*18 + Math.min(18,pairScore))*100)/100;
+  const highScore=aiHigherOrderScore(nums,ctx);
+  return Math.round(((numberScore/6)*18 + Math.min(18,pairScore) + highScore)*100)/100;
 }
 
 function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
@@ -1935,6 +1983,41 @@ function countPairFrequency(draws){
   });
   return pairs;
 }
+function comboKeysFromNums(nums,k){
+  const out=[];
+  const arr=sortNums(nums||[]);
+  function rec(start,path){
+    if(path.length===k){ out.push(path.join('-')); return; }
+    for(let i=start;i<arr.length;i++){
+      path.push(arr[i]);
+      rec(i+1,path);
+      path.pop();
+    }
+  }
+  rec(0,[]);
+  return out;
+}
+function countComboFrequency(draws,k){
+  const map = new Map();
+  (draws||[]).forEach(d=>{
+    comboKeysFromNums(d.numbers||[],k).forEach(key=>{
+      map.set(key,(map.get(key)||0)+1);
+    });
+  });
+  return map;
+}
+function topComboRows(draws,k,limit=12){
+  return [...countComboFrequency(draws,k).entries()]
+    .filter(([_,v])=>v>0)
+    .sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0]))
+    .slice(0,limit);
+}
+function manualComboRows(nums,draws,k){
+  const map=countComboFrequency(draws,k);
+  return comboKeysFromNums(nums,k)
+    .map(key=>({k:key,v:map.get(key)||0}))
+    .sort((a,b)=>b.v-a.v || a.k.localeCompare(b.k));
+}
 function heatClass(v,min,max){
   if(max<=min) return 'heat-0';
   const p=(v-min)/(max-min);
@@ -1949,6 +2032,7 @@ function renderPatternDashboard(){
   const draws = getPatternDraws();
   const heat = byId('heatmap90');
   const topPairsBox = byId('topPairsBox');
+  const topHighOrderBox = byId('topHighOrderBox');
 
   if(!draws.length){
     byId('phaseLabel').textContent='-';
@@ -1958,6 +2042,7 @@ function renderPatternDashboard(){
     byId('phaseBar').style.width='0%';
     heat.innerHTML='<div class="muted">Importa prima lo storico TXT.</div>';
     topPairsBox.innerHTML='Nessun dato disponibile.';
+    if(topHighOrderBox) topHighOrderBox.innerHTML='Nessun dato disponibile.';
     return;
   }
 
@@ -1975,9 +2060,20 @@ function renderPatternDashboard(){
 
   const pairs = countPairFrequency(draws);
   const topPairs = [...pairs.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0])).slice(0,24);
-  topPairsBox.innerHTML = topPairs.length
+  topPairsBox.innerHTML = '<div><strong>Top ambi</strong></div>' + (topPairs.length
     ? topPairs.map(([k,v])=>'<span class="pair-chip">'+k+' · '+v+'</span>').join('')
-    : 'Nessun ambo calcolabile.';
+    : '<div class="small muted">Nessun ambo calcolabile.</div>');
+
+  if(topHighOrderBox){
+    const labels={3:'Top terni',4:'Top quaterne',5:'Top cinquine',6:'Sestine già uscite'};
+    topHighOrderBox.innerHTML=[3,4,5,6].map(k=>{
+      const lim = k===3 ? 18 : (k===4 ? 12 : 8);
+      const rows = topComboRows(draws,k,lim);
+      return '<div class="pattern-block"><h4>'+labels[k]+'</h4>' + (rows.length
+        ? rows.map(([key,v])=>'<span class="pair-chip">'+key+' · '+v+'</span>').join('')
+        : '<div class="small muted">Nessun dato.</div>') + '</div>';
+    }).join('');
+  }
 
   const recent = (state.draws||[]).slice(0,30);
   const recentPairs = countPairFrequency(recent);
@@ -2019,31 +2115,59 @@ function analyzePatternNums(){
     return;
   }
   const freq = countNumberFrequency(draws);
-  const pairs = countPairFrequency(draws);
-  const allPairKeys=[];
-  for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++) allPairKeys.push(nums[i]+'-'+nums[j]);
-  const pairRows = allPairKeys.map(k=>({k,v:pairs.get(k)||0})).sort((a,b)=>b.v-a.v || a.k.localeCompare(b.k));
-  const avgFreq = nums.reduce((a,n)=>a+(freq[n]||0),0)/6;
   const maxFreq = Math.max(...Object.values(freq));
+  const avgFreq = nums.reduce((a,n)=>a+(freq[n]||0),0)/6;
   const heatPct = maxFreq ? Math.round((avgFreq/maxFreq)*100) : 0;
   const sum = nums.reduce((a,b)=>a+b,0);
   const even = nums.filter(n=>n%2===0).length;
   const consecutive = maxConsec(nums);
   const sameDec = countSameDec(nums);
-  const pairStrong = pairRows.filter(x=>x.v>=2).length;
-  const realism = Math.max(0, Math.min(100,
-    Math.round(heatPct*0.45 + (pairStrong*6) + (consecutive>=2?10:0) + (sameDec<=3?12:0) + (sum>=110&&sum<=260?12:0) + ([2,3,4].includes(even)?10:0))
-  ));
+
+  const rowsByK = {};
+  const strongByK = {};
+  const totalHitsByK = {};
+  [2,3,4,5,6].forEach(k=>{
+    rowsByK[k]=manualComboRows(nums,draws,k);
+    strongByK[k]=rowsByK[k].filter(x=>x.v>0).length;
+    totalHitsByK[k]=rowsByK[k].reduce((a,x)=>a+x.v,0);
+  });
+
+  const exactAlready = rowsByK[6][0]?.v || 0;
+  const realism = Math.max(0, Math.min(100, Math.round(
+    heatPct*0.30 +
+    Math.min(22,totalHitsByK[2]*0.55) +
+    Math.min(22,totalHitsByK[3]*1.10) +
+    Math.min(14,totalHitsByK[4]*2.20) +
+    Math.min(7,totalHitsByK[5]*3.00) +
+    (exactAlready ? -18 : 5) +
+    (consecutive>=2?6:0) +
+    (sameDec<=3?8:0) +
+    (sum>=110&&sum<=260?8:0) +
+    ([2,3,4].includes(even)?8:0)
+  )));
+
+  const labelMap={2:'Ambi della sestina',3:'Terni della sestina',4:'Quaterne della sestina',5:'Cinquine della sestina',6:'Sestina intera'};
+  const thresholds={2:2,3:1,4:1,5:1,6:1};
+  const tableForK=(k)=>{
+    const rows=rowsByK[k];
+    const maxRows = k===2 ? 15 : rows.length;
+    return '<div class="pattern-block"><h4>'+labelMap[k]+'</h4>'+
+      '<div class="pattern-mini-grid">'+
+        '<div class="pattern-mini"><div class="v">'+strongByK[k]+'</div><div class="l">combinazioni già viste</div></div>'+
+        '<div class="pattern-mini"><div class="v">'+totalHitsByK[k]+'</div><div class="l">uscite totali nella finestra</div></div>'+
+      '</div>'+
+      '<table class="pattern-table"><thead><tr><th>Combinazione</th><th>Uscite</th></tr></thead><tbody>'+
+        rows.slice(0,maxRows).map(r=>'<tr><td>'+r.k+'</td><td>'+r.v+(r.v>=thresholds[k]?' <span class="tag">forte</span>':'')+'</td></tr>').join('')+
+      '</tbody></table></div>';
+  };
 
   box.innerHTML =
-    '<div><strong>'+nums.join(' - ')+'</strong></div>'
-    +'<div class="small" style="margin-top:8px">Indice compatibilità: <strong>'+realism+'/100</strong></div>'
-    +'<div class="small">Somma: '+sum+' · Pari/dispari: '+even+'/'+(6-even)+' · Consecutivi max: '+consecutive+' · Max stessa decina: '+sameDec+'</div>'
-    +'<div class="small" style="margin-top:8px">Calore medio numeri: '+heatPct+'% · Ambi già visti almeno 2 volte nella finestra: '+pairStrong+'</div>'
-    +'<table class="pattern-table"><thead><tr><th>Ambo</th><th>Uscite nella finestra</th></tr></thead><tbody>'
-    +pairRows.map(r=>'<tr><td>'+r.k+'</td><td>'+r.v+'</td></tr>').join('')
-    +'</tbody></table>';
-  msg('msgPattern','Analisi completata sulla sestina '+nums.join('-')+'.');
+    '<div><strong>'+nums.join(' - ')+'</strong></div>'+
+    '<div class="small" style="margin-top:8px">Indice compatibilità completo: <strong>'+realism+'/100</strong></div>'+
+    '<div class="small">Somma: '+sum+' · Pari/dispari: '+even+'/'+(6-even)+' · Consecutivi max: '+consecutive+' · Max stessa decina: '+sameDec+'</div>'+
+    '<div class="small" style="margin-top:8px">Calore medio numeri: '+heatPct+'% · Ambi visti: '+strongByK[2]+' · Terni visti: '+strongByK[3]+' · Quaterne viste: '+strongByK[4]+' · Cinquine viste: '+strongByK[5]+' · Sestina già uscita: '+(exactAlready?'SÌ':'NO')+'</div>'+
+    [2,3,4,5,6].map(tableForK).join('');
+  msg('msgPattern','Analisi completa su ambi, terni, quaterne, cinquine e sestina: '+nums.join('-')+'.');
 }
 
 function render(){
