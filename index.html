@@ -99,6 +99,27 @@
     .nums-hitline.compact{gap:6px;margin-top:8px}
     .ball.compact{width:30px;height:30px;font-size:13px}
 
+
+    .heatmap90{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:12px}
+    .heat-cell{border-radius:10px;padding:9px 0;text-align:center;font-weight:800;font-size:13px;color:#07142d;background:#dbe3ee}
+    .heat-0{background:#dbe3ee;color:#34425f}
+    .heat-1{background:#b7d7ff;color:#062747}
+    .heat-2{background:#ffe08a;color:#3a2900}
+    .heat-3{background:#ff9b54;color:#321400}
+    .heat-4{background:#ef4d3f;color:#fff}
+    .pattern-table{width:100%;border-collapse:collapse;margin-top:10px}
+    .pattern-table th,.pattern-table td{border-bottom:1px solid var(--line);padding:8px;text-align:left;font-size:13px}
+    .phase-meter{height:12px;background:#10254d;border-radius:999px;overflow:hidden;margin-top:8px}
+    .phase-bar{height:100%;width:0%;background:linear-gradient(90deg,#67c0ff,#f1ce66,#ef6c63);border-radius:999px}
+    .pattern-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    .pattern-kpi{background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:12px}
+    .pattern-kpi .v{font-size:22px;font-weight:800}
+    .pair-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#203963;color:#dfeaff;font-size:12px;font-weight:700}
+    @media (max-width:900px){
+      .heatmap90{grid-template-columns:repeat(5,1fr)}
+      .pattern-kpis{grid-template-columns:1fr 1fr}
+    }
+
     @media (max-width:900px){
       .g2,.g3,.nums,.num-grid90,.kpis{grid-template-columns:1fr}
       .wrap{padding:12px}
@@ -387,6 +408,57 @@
     <div class="msg" id="msgAnalysis"></div>
     <div class="sep"></div>
     <div id="analysisList" class="list"></div>
+  </div>
+
+
+  <div class="card" style="margin-top:16px" id="patternDashboard">
+    <h2>Analisi Pattern e Fase</h2>
+    <p class="muted small">Legge lo storico importato e mostra numeri caldi, ambi ricorrenti, fase statistica e analisi di una sestina manuale.</p>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <div class="muted small">Finestra analisi</div>
+        <select id="patternWindow">
+          <option value="30">Ultimi 30 concorsi</option>
+          <option value="90">Ultimi 90 concorsi</option>
+          <option value="180">Ultimi 180 concorsi</option>
+          <option value="365">Ultimi 365 concorsi</option>
+          <option value="all">Tutto lo storico</option>
+        </select>
+      </div>
+      <div>
+        <div class="muted small">Sestina da controllare</div>
+        <input id="patternManualNums" placeholder="Esempio: 1-38-57-58-64-81">
+      </div>
+      <div style="align-self:end">
+        <button class="btn-blue" id="btnAnalyzePatternNums">Analizza sestina</button>
+      </div>
+      <div style="align-self:end">
+        <button class="btn-grey" id="btnRefreshPatterns">Aggiorna pattern</button>
+      </div>
+    </div>
+
+    <div class="pattern-kpis">
+      <div class="pattern-kpi"><div class="muted small">Fase</div><div class="v" id="phaseLabel">-</div></div>
+      <div class="pattern-kpi"><div class="muted small">Indice fase</div><div class="v mono" id="phaseScore">0/100</div></div>
+      <div class="pattern-kpi"><div class="muted small">Ambi forti</div><div class="v mono" id="phasePairs">0</div></div>
+      <div class="pattern-kpi"><div class="muted small">Consecutivi recenti</div><div class="v mono" id="phaseConsec">0%</div></div>
+    </div>
+    <div class="phase-meter"><div class="phase-bar" id="phaseBar"></div></div>
+    <div class="msg" id="msgPattern"></div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div>
+        <h3>Heatmap numeri</h3>
+        <div class="heatmap90" id="heatmap90"></div>
+      </div>
+      <div>
+        <h3>Top ambi</h3>
+        <div id="topPairsBox" class="item" style="margin-top:12px"></div>
+        <h3 style="margin-top:14px">Analisi sestina</h3>
+        <div id="manualPatternBox" class="item">Inserisci una sestina e premi Analizza.</div>
+      </div>
+    </div>
   </div>
 
   <div class="card" style="margin-top:16px">
@@ -1690,6 +1762,144 @@ function renderSmartPicker(){
     btn.classList.toggle('active', selected.includes(Number(btn.dataset.n)));
   });
 }
+
+function getPatternDraws(){
+  const sel = byId('patternWindow');
+  const val = sel ? sel.value : '30';
+  if(val === 'all') return state.draws || [];
+  const n = parseInt(val,10) || 30;
+  return (state.draws || []).slice(0,n);
+}
+function countNumberFrequency(draws){
+  const freq = {};
+  for(let n=1;n<=90;n++) freq[n]=0;
+  (draws||[]).forEach(d => (d.numbers||[]).forEach(n => { freq[n]=(freq[n]||0)+1; }));
+  return freq;
+}
+function countPairFrequency(draws){
+  const pairs = new Map();
+  (draws||[]).forEach(d=>{
+    const nums = sortNums(d.numbers||[]);
+    for(let i=0;i<nums.length;i++){
+      for(let j=i+1;j<nums.length;j++){
+        const k = nums[i]+'-'+nums[j];
+        pairs.set(k,(pairs.get(k)||0)+1);
+      }
+    }
+  });
+  return pairs;
+}
+function heatClass(v,min,max){
+  if(max<=min) return 'heat-0';
+  const p=(v-min)/(max-min);
+  if(p>=0.82) return 'heat-4';
+  if(p>=0.62) return 'heat-3';
+  if(p>=0.42) return 'heat-2';
+  if(p>=0.20) return 'heat-1';
+  return 'heat-0';
+}
+function renderPatternDashboard(){
+  if(!byId('patternDashboard')) return;
+  const draws = getPatternDraws();
+  const heat = byId('heatmap90');
+  const topPairsBox = byId('topPairsBox');
+
+  if(!draws.length){
+    byId('phaseLabel').textContent='-';
+    byId('phaseScore').textContent='0/100';
+    byId('phasePairs').textContent='0';
+    byId('phaseConsec').textContent='0%';
+    byId('phaseBar').style.width='0%';
+    heat.innerHTML='<div class="muted">Importa prima lo storico TXT.</div>';
+    topPairsBox.innerHTML='Nessun dato disponibile.';
+    return;
+  }
+
+  const freq = countNumberFrequency(draws);
+  const values = Object.values(freq);
+  const min = Math.min(...values), max = Math.max(...values);
+  heat.innerHTML='';
+  for(let n=1;n<=90;n++){
+    const cell=document.createElement('div');
+    cell.className='heat-cell '+heatClass(freq[n],min,max);
+    cell.title='Numero '+n+' · uscito '+freq[n]+' volte nella finestra selezionata';
+    cell.textContent=n;
+    heat.appendChild(cell);
+  }
+
+  const pairs = countPairFrequency(draws);
+  const topPairs = [...pairs.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0])).slice(0,24);
+  topPairsBox.innerHTML = topPairs.length
+    ? topPairs.map(([k,v])=>'<span class="pair-chip">'+k+' · '+v+'</span>').join('')
+    : 'Nessun ambo calcolabile.';
+
+  const recent = (state.draws||[]).slice(0,30);
+  const recentPairs = countPairFrequency(recent);
+  const strongPairs = [...recentPairs.values()].filter(v=>v>=2).length;
+  const consecDraws = recent.filter(d=>maxConsec(sortNums(d.numbers||[]))>=2).length;
+  const consecPct = recent.length ? Math.round((consecDraws/recent.length)*100) : 0;
+  const hotHigh = recent.flatMap(d=>d.numbers||[]).filter(n=>n>=46).length;
+  const highPct = recent.length ? Math.round((hotHigh/(recent.length*6))*100) : 0;
+  const score = Math.max(0, Math.min(100, Math.round(strongPairs*2.2 + consecPct*0.45 + Math.abs(highPct-50)*0.7)));
+  let label='Fredda';
+  if(score>=75) label='Scarico/cluster forte';
+  else if(score>=55) label='Cluster attivo';
+  else if(score>=35) label='Normale calda';
+  else if(score>=20) label='Normale';
+
+  byId('phaseLabel').textContent=label;
+  byId('phaseScore').textContent=score+'/100';
+  byId('phasePairs').textContent=String(strongPairs);
+  byId('phaseConsec').textContent=consecPct+'%';
+  byId('phaseBar').style.width=score+'%';
+}
+function parsePatternNums(){
+  const raw = (byId('patternManualNums')?.value || '').trim();
+  const nums = raw.match(/\d+/g)?.map(Number).filter(n=>n>=1 && n<=90) || [];
+  return sortNums([...new Set(nums)]).slice(0,6);
+}
+function analyzePatternNums(){
+  const nums = parsePatternNums();
+  const box = byId('manualPatternBox');
+  if(!validSix(nums)){
+    box.innerHTML='Inserisci 6 numeri validi e distinti.';
+    msg('msgPattern','Sestina non valida.',true);
+    return;
+  }
+  const draws = getPatternDraws();
+  if(!draws.length){
+    box.innerHTML='Importa prima lo storico.';
+    msg('msgPattern','Storico mancante.',true);
+    return;
+  }
+  const freq = countNumberFrequency(draws);
+  const pairs = countPairFrequency(draws);
+  const allPairKeys=[];
+  for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++) allPairKeys.push(nums[i]+'-'+nums[j]);
+  const pairRows = allPairKeys.map(k=>({k,v:pairs.get(k)||0})).sort((a,b)=>b.v-a.v || a.k.localeCompare(b.k));
+  const avgFreq = nums.reduce((a,n)=>a+(freq[n]||0),0)/6;
+  const maxFreq = Math.max(...Object.values(freq));
+  const heatPct = maxFreq ? Math.round((avgFreq/maxFreq)*100) : 0;
+  const sum = nums.reduce((a,b)=>a+b,0);
+  const even = nums.filter(n=>n%2===0).length;
+  const consecutive = maxConsec(nums);
+  const sameDec = countSameDec(nums);
+  const pairStrong = pairRows.filter(x=>x.v>=2).length;
+  const realism = Math.max(0, Math.min(100,
+    Math.round(heatPct*0.45 + (pairStrong*6) + (consecutive>=2?10:0) + (sameDec<=3?12:0) + (sum>=110&&sum<=260?12:0) + ([2,3,4].includes(even)?10:0))
+  ));
+
+  box.innerHTML =
+    '<div><strong>'+nums.join(' - ')+'</strong></div>'
+    +'<div class="small" style="margin-top:8px">Indice compatibilità: <strong>'+realism+'/100</strong></div>'
+    +'<div class="small">Somma: '+sum+' · Pari/dispari: '+even+'/'+(6-even)+' · Consecutivi max: '+consecutive+' · Max stessa decina: '+sameDec+'</div>'
+    +'<div class="small" style="margin-top:8px">Calore medio numeri: '+heatPct+'% · Ambi già visti almeno 2 volte nella finestra: '+pairStrong+'</div>'
+    +'<table class="pattern-table"><thead><tr><th>Ambo</th><th>Uscite nella finestra</th></tr></thead><tbody>'
+    +pairRows.map(r=>'<tr><td>'+r.k+'</td><td>'+r.v+'</td></tr>').join('')
+    +'</tbody></table>';
+  msg('msgPattern','Analisi completata sulla sestina '+nums.join('-')+'.');
+}
+
 function render(){
   byId('s_draws').textContent=String(state.draws.length);
   byId('s_played').textContent=String(state.played.length);
@@ -1807,6 +2017,7 @@ function render(){
   });
   dl.querySelectorAll('[data-rm-draw]').forEach(b=>b.onclick=()=>removeDraw(b.dataset.rmDraw));
 
+  renderPatternDashboard();
   renderSmartPicker();
   syncSmartAutoCount();
   renderSystem();
@@ -1843,6 +2054,9 @@ function bind(){
   byId('btnMarkPlayed').onclick=markPlayed;
   if(byId('btnToggleSystem')) byId('btnToggleSystem').onclick=toggleSystemBox;
   if(byId('btnExportArchivedHits')) byId('btnExportArchivedHits').onclick=exportArchivedHitsCSV;
+  if(byId('btnAnalyzePatternNums')) byId('btnAnalyzePatternNums').onclick=analyzePatternNums;
+  if(byId('btnRefreshPatterns')) byId('btnRefreshPatterns').onclick=()=>{ renderPatternDashboard(); msg('msgPattern','Pattern aggiornati.'); };
+  if(byId('patternWindow')) byId('patternWindow').onchange=()=>{ renderPatternDashboard(); if((byId('patternManualNums')?.value||'').trim()) analyzePatternNums(); };
   byId('btnAnalyzeOne').onclick=analyzeOne;
   byId('btnAnalyzeAll').onclick=analyzeAll;
   byId('btnSmartClear').onclick=clearSmartNumbers;
