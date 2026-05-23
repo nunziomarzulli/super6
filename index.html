@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v37 Definitivo AI + Vincite Reali</title>
+  <title>Super6plus v39 Vincite Compatte + Vincite Reali</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -100,13 +100,26 @@
     .draw-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .draw-actions button{flex:0 0 auto;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1}
     .draw-win-btn{background:var(--blue);color:#07203e}
-    .draw-prize-box{margin-top:10px;background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:10px}
-    .draw-prize-title{font-weight:800;margin-bottom:8px;color:#eef4ff}
-    .draw-prize-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-    .draw-prize-row{background:#102852;border:1px solid #29446f;border-radius:12px;padding:9px}
-    .draw-prize-row strong{display:block;margin-bottom:4px}
-    .draw-prize-row .line{font-size:12px;color:#dbe7ff;margin-top:2px}
-    .draw-prize-total{margin-top:8px;background:#13284f;border:1px solid #355785;border-radius:12px;padding:10px;font-weight:800}
+    .draw-prize-box{margin-top:8px;background:#071733;border:1px solid #29446f;border-radius:12px;padding:8px}
+    .draw-prize-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .draw-prize-title{font-weight:900;color:#eef4ff;font-size:13px;text-transform:uppercase;letter-spacing:.3px}
+    .draw-prize-total-mini{font-size:18px;font-weight:900;color:#66db6b}
+    .draw-prize-toggle{background:#203963;color:#dfeaff;border:1px solid #355785;padding:6px 9px;border-radius:9px;font-size:11px;font-weight:900}
+    .draw-prize-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+    .draw-prize-chip{background:#102852;border:1px solid #29446f;border-radius:10px;padding:5px 7px;font-size:11px;line-height:1.15;color:#dbe7ff}
+    .draw-prize-chip b{color:#67c0ff;font-size:12px}
+    .draw-prize-chip .paid{color:#66db6b;font-weight:900}
+    .draw-prize-chip.zero{opacity:.55}
+    .draw-prize-details{display:none;margin-top:8px}
+    .draw-prize-details.open{display:block}
+    .draw-prize-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+    .draw-prize-row{background:#102852;border:1px solid #29446f;border-radius:10px;padding:7px}
+    .draw-prize-row strong{display:block;margin-bottom:4px;color:#eef4ff;font-size:13px}
+    .draw-prize-row .line{font-size:11px;color:#dbe7ff;margin-top:1px;line-height:1.25}
+    .draw-prize-row .num{color:#67c0ff;font-weight:900}
+    .draw-prize-row .euro{color:#f1ce66;font-weight:900}
+    .draw-prize-row .total{color:#66db6b;font-weight:900}
+    .draw-prize-total{margin-top:6px;background:#13284f;border:1px solid #355785;border-radius:10px;padding:8px;font-weight:900;color:#66db6b;font-size:14px}
     .wins-editor{display:none;margin-top:10px;background:#081730;border:1px solid #355785;border-radius:14px;padding:10px}
     .wins-editor.open{display:block}
     .wins-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -166,7 +179,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v37 Definitivo AI + Vincite Reali</h1>
+  <h1>Super6plus v39 Vincite Compatte + Vincite Reali</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -631,6 +644,7 @@ function emptyState(){
 }
 let state=emptyState();
 let openWinsContest=null;
+let openPrizeContest=null;
 let drawArchiveSearchTerm='';
 const DRAW_ARCHIVE_LIMIT=80;
 function saveState(){
@@ -2537,26 +2551,58 @@ function prizeGrandTotal(prizes){
   WIN_CATS.forEach(c=>{ total += prizeCategoryTotal(prizes?.[c.key]); });
   return total;
 }
-function renderPrizesSummary(draw){
+function renderPrizesSummary(draw, expanded=false){
   ensureDrawPrizes(draw);
   const total=prizeGrandTotal(draw.prizes);
   const hasData=WIN_CATS.some(c=>(draw.prizes[c.key].count||0)>0 || (draw.prizes[c.key].single||0)>0);
   if(!hasData){
-    return '<div class="draw-prize-box"><div class="small muted">Vincite non ancora inserite. Quando Sisal pubblica i dati, premi “Aggiorna vincite”.</div></div>';
+    return '<div class="draw-prize-box"><div class="draw-prize-head">'
+      +'<div class="draw-prize-title">Vincite reali</div>'
+      +'<button class="draw-prize-toggle" data-open-wins="'+draw.contest+'">Inserisci vincite</button>'
+      +'</div><div class="small muted" style="margin-top:6px">Non ancora inserite. Quando Sisal pubblica i dati, premi “Inserisci vincite”.</div></div>';
   }
-  let html='<div class="draw-prize-box"><div class="draw-prize-title">Vincite reali concorso</div><div class="draw-prize-grid">';
+
+  let chipHtml='';
+  WIN_CATS.forEach(c=>{
+    const rec=draw.prizes[c.key]||{count:0,single:0};
+    const catTotal=prizeCategoryTotal(rec);
+    const zero=((rec.count||0)===0 && (rec.single||0)===0 && catTotal===0);
+    chipHtml+='<div class="draw-prize-chip '+(zero?'zero':'')+'">'
+      +'<b>'+c.label+'</b> '
+      +'<span>'+fmtIntIT(rec.count)+'</span> × '
+      +'<span>'+fmtEuroIT(rec.single)+'</span> = '
+      +'<span class="paid">'+fmtEuroIT(catTotal)+'</span>'
+      +'</div>';
+  });
+
+  let html='<div class="draw-prize-box">'
+    +'<div class="draw-prize-head">'
+    +'<div class="draw-prize-title">Vincite reali concorso</div>'
+    +'<div class="draw-prize-total-mini">'+fmtEuroIT(total)+'</div>'
+    +'<button class="draw-prize-toggle" data-toggle-prizes="'+draw.contest+'">'+(expanded?'Chiudi dettaglio':'Vedi dettaglio')+'</button>'
+    +'</div>'
+    +'<div class="draw-prize-strip">'+chipHtml+'</div>'
+    +'<div class="draw-prize-details '+(expanded?'open':'')+'"><div class="draw-prize-grid">';
+
   WIN_CATS.forEach(c=>{
     const rec=draw.prizes[c.key]||{count:0,single:0};
     const catTotal=prizeCategoryTotal(rec);
     html+='<div class="draw-prize-row">'
       +'<strong>'+c.label+'</strong>'
-      +'<div class="line">'+fmtIntIT(rec.count)+' vincite</div>'
-      +'<div class="line">Vincita singola: '+fmtEuroIT(rec.single)+'</div>'
-      +'<div class="line">Totale pagato: '+fmtEuroIT(catTotal)+'</div>'
+      +'<div class="line">Vincite: <span class="num">'+fmtIntIT(rec.count)+'</span></div>'
+      +'<div class="line">Singola: <span class="euro">'+fmtEuroIT(rec.single)+'</span></div>'
+      +'<div class="line">Pagato: <span class="total">'+fmtEuroIT(catTotal)+'</span></div>'
       +'</div>';
   });
-  html+='</div><div class="draw-prize-total">Totale premi pagati concorso: '+fmtEuroIT(total)+'</div></div>';
+  html+='</div><div class="draw-prize-total">Totale premi pagati: '+fmtEuroIT(total)+'</div></div></div>';
   return html;
+}
+function togglePrizeDetails(contest){
+  openPrizeContest = String(openPrizeContest)===String(contest) ? null : String(contest);
+  drawArchiveSearchTerm = String(contest);
+  const search=byId('drawArchiveSearch');
+  if(search) search.value=drawArchiveSearchTerm;
+  render();
 }
 function renderWinsEditor(draw){
   ensureDrawPrizes(draw);
@@ -2581,6 +2627,7 @@ function renderWinsEditor(draw){
 }
 function openWinsEditor(contest){
   openWinsContest = String(openWinsContest)===String(contest) ? null : String(contest);
+  openPrizeContest = null;
   drawArchiveSearchTerm = String(contest);
   const search=byId('drawArchiveSearch');
   if(search) search.value=drawArchiveSearchTerm;
@@ -2602,6 +2649,7 @@ function saveWinsForDraw(contest){
   });
   if(saveState()){
     openWinsContest=null;
+    openPrizeContest=String(contest);
     render();
     alert('Vincite salvate per il concorso '+contest);
   }
@@ -2733,12 +2781,13 @@ function render(){
       +'<div class="small" style="margin-top:4px">'+d.date+'</div>'
       +'<div class="mono" style="margin-top:6px">'+d.numbers.join(' - ')+'</div>'
       +'<div class="small" style="margin-top:6px">Jolly: '+d.jolly+' · SuperStar: '+d.superstar+'</div>'
-      +renderPrizesSummary(d)
+      +renderPrizesSummary(d, String(openPrizeContest)===String(d.contest))
       +editorHtml
       +'<div class="draw-actions"><button class="draw-win-btn" data-open-wins="'+d.contest+'">Aggiorna vincite</button><button class="btn-red" data-rm-draw="'+d.contest+'">Cancella</button></div>';
     dl.appendChild(div);
   });
   dl.querySelectorAll('[data-rm-draw]').forEach(b=>b.onclick=()=>removeDraw(b.dataset.rmDraw));
+  dl.querySelectorAll('[data-toggle-prizes]').forEach(b=>b.onclick=()=>togglePrizeDetails(b.dataset.togglePrizes));
   dl.querySelectorAll('[data-open-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.openWins));
   dl.querySelectorAll('[data-save-wins]').forEach(b=>b.onclick=()=>saveWinsForDraw(b.dataset.saveWins));
   dl.querySelectorAll('[data-close-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.closeWins));
@@ -2766,10 +2815,10 @@ function bind(){
   const btnArchiveReset=byId('btnResetDrawArchive');
   if(archiveSearch){
     archiveSearch.value=drawArchiveSearchTerm;
-    archiveSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ drawArchiveSearchTerm=archiveSearch.value.trim(); openWinsContest=null; render(); } };
+    archiveSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ drawArchiveSearchTerm=archiveSearch.value.trim(); openWinsContest=null; openPrizeContest=null; render(); } };
   }
-  if(btnArchiveSearch) btnArchiveSearch.onclick=()=>{ drawArchiveSearchTerm=(archiveSearch?.value||'').trim(); openWinsContest=null; render(); };
-  if(btnArchiveReset) btnArchiveReset.onclick=()=>{ drawArchiveSearchTerm=''; openWinsContest=null; if(archiveSearch) archiveSearch.value=''; render(); };
+  if(btnArchiveSearch) btnArchiveSearch.onclick=()=>{ drawArchiveSearchTerm=(archiveSearch?.value||'').trim(); openWinsContest=null; openPrizeContest=null; render(); };
+  if(btnArchiveReset) btnArchiveReset.onclick=()=>{ drawArchiveSearchTerm=''; openWinsContest=null; openPrizeContest=null; if(archiveSearch) archiveSearch.value=''; render(); };
   byId('btnImportTxt').onclick=async()=>{
     const f=byId('txtFile').files[0]; if(!f) return msg('msgImport','Scegli prima un file TXT.',true);
     try{ importTxt(await f.text()); } catch(e){ msg('msgImport','Errore nel file TXT: '+e.message,true); }
