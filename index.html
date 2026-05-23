@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v32 Definitivo AI</title>
+  <title>Super6plus v33 Definitivo AI</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -128,7 +128,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v32 Definitivo AI</h1>
+  <h1>Super6plus v33 Definitivo AI</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -183,9 +183,19 @@
           <div>
             <div class="muted small">Sestine finali da giocare</div>
             <select id="f_results">
-              <option value="8">8</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8" selected>8</option>
+              <option value="10">10</option>
               <option value="12">12</option>
+              <option value="15">15</option>
               <option value="20">20</option>
+              <option value="25">25</option>
               <option value="30">30</option>
               <option value="40">40</option>
               <option value="50">50</option>
@@ -249,7 +259,7 @@
     </div>
 
     <div class="sep"></div>
-    <div class="muted small" style="margin-top:8px">Quando premi Genera, il sistema ti propone da 8 fino a 50 sestine finali già selezionate dal motore.</div>
+    <div class="muted small" style="margin-top:8px">Quando premi Genera, scegli tu quante sestine produrre: da 1 fino a 50, tutte filtrate dal motore AI multi-periodo.</div>
     <div id="generatedList" class="list" style="margin-top:12px"></div>
     <div class="sep"></div>
     <div class="card" style="background:#081730;border-color:#27426d">
@@ -709,7 +719,7 @@ function saveDraw(){
 
 function settings(){
   return {
-    pool:+byId('f_pool').value||25000, results: Math.max(8, Math.min(50, parseInt(byId('f_results').value, 10) || 8)),
+    pool:+byId('f_pool').value||25000, results: Math.max(1, Math.min(50, parseInt(byId('f_results').value, 10) || 8)),
     sumMin:+byId('f_sumMin').value||110, sumMax:+byId('f_sumMax').value||260,
     sameDec:+byId('f_sameDec').value||3, consec:+byId('f_consec').value||2,
     sameEnd:+byId('f_sameEnd').value||2, minDecs:+byId('f_minDecs').value||4,
@@ -757,7 +767,7 @@ function buildAutoSettings(){
   if(modeScore.aggressive >= modeScore.balanced && modeScore.aggressive >= modeScore.prudent) mode = 'aggressive';
   else if(modeScore.prudent > modeScore.balanced) mode = 'prudent';
 
-  const results = Math.max(8, Math.min(50, parseInt(byId('f_results').value, 10) || manual.results || 8));
+  const results = Math.max(1, Math.min(50, parseInt(byId('f_results').value, 10) || manual.results || 8));
   const lowBias = lowCountRecent >= highCountRecent;
   const recentWindow = results >= 30 ? 14 : 18;
   const zoneMode = mode === 'prudent' ? 'RIGIDO' : 'MORBIDO';
@@ -1214,6 +1224,81 @@ function buildAbsoluteReport(profile, learned, generated){
 function buildShiftVariants(nums, learned, mirrorMode){
   return buildAdaptiveShiftVariants(nums, learned, mirrorMode);
 }
+
+function aiWindowDraws(kind){
+  const draws=state.draws||[];
+  if(kind==='short') return draws.slice(0, Math.min(60, draws.length));
+  if(kind==='medium') return draws.slice(0, Math.min(180, draws.length));
+  return draws;
+}
+function aiFreqMap(draws){
+  const freq=Array(91).fill(0);
+  (draws||[]).forEach(d=>(d.numbers||[]).forEach(n=>{ if(n>=1&&n<=90) freq[n]++; }));
+  return freq;
+}
+function aiPairMap(draws){
+  const map=new Map();
+  (draws||[]).forEach(d=>{
+    const nums=sortNums(d.numbers||[]);
+    for(let i=0;i<nums.length;i++){
+      for(let j=i+1;j<nums.length;j++){
+        const k=nums[i]+'-'+nums[j];
+        map.set(k,(map.get(k)||0)+1);
+      }
+    }
+  });
+  return map;
+}
+function aiNormFreq(freq, drawsCount){
+  const out=Array(91).fill(0);
+  const expected=Math.max(1, drawsCount*6/90);
+  for(let n=1;n<=90;n++){
+    out[n]=Math.min(2.4, (freq[n]||0)/expected);
+  }
+  return out;
+}
+function aiMultiPeriodContext(){
+  const shortD=aiWindowDraws('short');
+  const mediumD=aiWindowDraws('medium');
+  const allD=aiWindowDraws('all');
+  const sf=aiNormFreq(aiFreqMap(shortD), shortD.length||1);
+  const mf=aiNormFreq(aiFreqMap(mediumD), mediumD.length||1);
+  const af=aiNormFreq(aiFreqMap(allD), allD.length||1);
+  const numScore=Array(91).fill(0);
+  for(let n=1;n<=90;n++){
+    numScore[n]=(sf[n]*0.66)+(mf[n]*0.24)+(af[n]*0.10);
+  }
+  return {
+    shortPairs:aiPairMap(shortD),
+    mediumPairs:aiPairMap(mediumD),
+    allPairs:aiPairMap(allD),
+    numScore,
+    shortCount:shortD.length,
+    mediumCount:mediumD.length,
+    allCount:allD.length
+  };
+}
+function aiPairWeightedValue(a,b,ctx){
+  const k=Math.min(a,b)+'-'+Math.max(a,b);
+  const s=(ctx.shortPairs.get(k)||0)/Math.max(1,ctx.shortCount);
+  const m=(ctx.mediumPairs.get(k)||0)/Math.max(1,ctx.mediumCount);
+  const h=(ctx.allPairs.get(k)||0)/Math.max(1,ctx.allCount);
+  return (s*0.66)+(m*0.24)+(h*0.10);
+}
+function aiComboPeriodScore(nums,ctx){
+  if(!ctx) ctx=aiMultiPeriodContext();
+  let numberScore=0;
+  nums.forEach(n=>{ numberScore += ctx.numScore[n]||0; });
+  let pairScore=0;
+  const s=sortNums(nums);
+  for(let i=0;i<s.length;i++){
+    for(let j=i+1;j<s.length;j++){
+      pairScore += aiPairWeightedValue(s[i],s[j],ctx)*100;
+    }
+  }
+  return Math.round(((numberScore/6)*18 + Math.min(18,pairScore))*100)/100;
+}
+
 function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile=null,learned=[],opts={}){
   if(opts===undefined && errorProfile && !Array.isArray(errorProfile) && typeof errorProfile==='object' && ('allowImperfect' in errorProfile || 'shiftVariant' in errorProfile)){
     opts=errorProfile; errorProfile=null; learned=[];
@@ -1223,6 +1308,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   }
   if(!opts || Array.isArray(opts) || typeof opts!=='object') opts={};
   const tuned=autoTuneFactors(errorProfile||{});
+  const periodCtx=opts.periodCtx || aiMultiPeriodContext();
   const sum=nums.reduce((a,b)=>a+b,0);
   const low=lowCount(nums);
   const missCount=nums.filter(n=>missingSet.has(n)).length;
@@ -1234,6 +1320,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   const zoneDir=directionalZoneScore(nums,direction);
   const adaptiveHits=nearHitsToReference(nums, latestDraw, [1,2,3]);
   const learnedHits=learnedCoverage(nums, latestDraw, learned||[]);
+  const periodScore=aiComboPeriodScore(nums, periodCtx);
   const repeatPenaltyValue=repeatedPenalty(nums, errorProfile||{});
   const stats={
     sum,
@@ -1254,7 +1341,8 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     coveredZones:coveredZonesCount(nums),
     zoneBase,
     zoneDir,
-    parityOk:parityOk(nums)
+    parityOk:parityOk(nums),
+    periodScore
   };
   let penalty=0;
   if(!stats.parityOk) penalty+=14;
@@ -1271,6 +1359,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   if(stats.recurrent>1) penalty+=5*(stats.recurrent-1);
   if(!zoneRulePasses(nums,f)) penalty+=10;
   if(stats.nearLatest===0) penalty+=6;
+  if(stats.periodScore<9) penalty+=6;
   if(stats.nearLatestWide===0) penalty+=4;
   penalty += stats.repeatPenalty * (f.personalAvoid==='ON' ? 2.6 * tuned.repeatPenalty : 0);
   const bonus =
@@ -1284,6 +1373,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     (stats.coveredZones*5) +
     ((stats.missCount>=1&&stats.missCount<=2)?7:0) +
     ((opts.shiftVariant)?8:0) +
+    (stats.periodScore*1.15) +
     ((tuned.driftBias<0 && nums.some(n=>n>1))?1.2:0) +
     ((tuned.driftBias>0 && nums.some(n=>n<90))?1.2:0);
   const score = Math.round((120 - penalty + bonus)*100)/100;
@@ -1326,7 +1416,15 @@ function numberStats(){
   const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
   const prevDraw=(state.draws[1] && state.draws[1].numbers) ? state.draws[1].numbers : [];
   const direction=zoneDirectionProfile(9,18);
-  for(let n=1;n<=90;n++) map.set(n,{n,freqGen:0,freqDraw:0,lastSeen:null,monthMissing:monthMissing.has(n),candidateFreq:0,pairBoost:0,nearLatest:0,nearPrev:0,zoneTrend:(direction[zoneIndex3x3(n)]||0)});
+  const periodCtx=aiMultiPeriodContext();
+  for(let n=1;n<=90;n++){
+    map.set(n,{
+      n,freqGen:0,freqDraw:0,lastSeen:null,monthMissing:monthMissing.has(n),
+      candidateFreq:0,pairBoost:0,nearLatest:0,nearPrev:0,
+      zoneTrend:(direction[zoneIndex3x3(n)]||0),
+      periodScore:(periodCtx.numScore[n]||0)
+    });
+  }
   state.generated.forEach(g=>g.numbers.forEach(n=>map.get(n).freqGen++));
   state.draws.forEach((d,idx)=>d.numbers.forEach(n=>{
     const item=map.get(n);
@@ -1345,9 +1443,10 @@ function numberStats(){
   prevDraw.forEach(r=>{ for(let d=-2; d<=2; d++){ const n=r+d; if(n>=1&&n<=90 && d!==0) map.get(n).nearPrev += (Math.abs(d)===1?1.4:0.7); } });
   return [...map.values()].map(x=>({
     ...x,
-    score:(x.candidateFreq*10)+(x.freqGen*7)+(x.freqDraw*1.5)+((x.lastSeen===null?12:Math.min(x.lastSeen,12))*1.8)+(x.monthMissing?8:0)+(x.pairBoost*2)+(x.nearLatest*6)+(x.nearPrev*3)+(x.zoneTrend*4)
+    score:(x.candidateFreq*10)+(x.freqGen*7)+(x.freqDraw*1.5)+((x.lastSeen===null?12:Math.min(x.lastSeen,12))*1.8)+(x.monthMissing?8:0)+(x.pairBoost*2)+(x.nearLatest*6)+(x.nearPrev*3)+(x.zoneTrend*4)+(x.periodScore*18)
   }));
 }
+
 function systemLowRange(wanted, f){
   return {
     min: Math.max(1, Math.floor((wanted * f.lowMin)/6)),
@@ -1357,7 +1456,7 @@ function systemLowRange(wanted, f){
 function buildSystemNumbers(mode,count){
   const cfg=SMART_MODES[mode]||SMART_MODES.INTEGRALE;
   const wanted=Math.max(cfg.min, Math.min(cfg.max, count||cfg.min));
-  const f=settings();
+  const f=(state.draws && state.draws.length) ? buildAutoSettings() : settings();
   const stats=numberStats();
   const recentProfile=recentZoneProfile(f.zoneRecent);
   const sorted=stats.sort((a,b)=>b.score-a.score || a.n-b.n);
@@ -1469,13 +1568,48 @@ function autoPickSmartNumbers(){
   state.smartPicker.selected=nums;
   saveState();
   renderSmartPicker();
-  msg('msgSystem', state.smartPicker.mode+' generato con '+nums.length+' numeri usando i filtri attivi, inclusa heatmap zone, e i segnali statistici disponibili. Ora puoi confermare e copiarli su Sisal.');
+  msg('msgSystem', state.smartPicker.mode+' generato con '+nums.length+' numeri usando il motore AI multi-periodo: storico breve, medio periodo e storico totale come giudice finale. Ora puoi confermare e copiarli su Sisal.');
+}
+
+
+function rankSystemPreviewRows(base, mode, maxRows=12){
+  const nums=sortNums(base||[]);
+  if(nums.length<6) return [];
+  const f=(state.draws && state.draws.length) ? buildAutoSettings() : settings();
+  const pairMap=recurringPairs(12);
+  const missingSet=new Set(getMonthMissingNumbers());
+  const recentProfile=recentZoneProfile(f.zoneRecent);
+  const direction=zoneDirectionProfile(Math.max(6, Math.floor((f.zoneRecent||18)/2)), Math.max(6, f.zoneRecent||18));
+  const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+  const errorProfile=personalErrorProfile();
+  const learned=(f.shiftLearn==='ON') ? learnedShiftDeltas(errorProfile) : [];
+  const periodCtx=aiMultiPeriodContext();
+  const candidates=[];
+  if(choose(nums.length,6)<=12000){
+    combinations(nums,6).forEach(c=>candidates.push(c));
+  }else{
+    const seen=new Set();
+    let tries=0;
+    const limit=Math.min(45000, Math.max(12000, nums.length*900));
+    while(candidates.length<12000 && tries<limit){
+      const c=randomComboFromPool(nums);
+      const k=keyOf(c);
+      if(!seen.has(k)){ seen.add(k); candidates.push(c); }
+      tries++;
+    }
+  }
+  return candidates.map(c=>{
+    const meta=evaluateCombo(c,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true,periodCtx});
+    return {numbers:c, score:meta.score, periodScore:meta.periodScore, recurrent:meta.recurrent, coveredZones:meta.coveredZones};
+  }).sort((a,b)=>b.score-a.score).slice(0,maxRows);
 }
 
 function buildReducedSystem(selected, target){
   const nums=sortNums(selected);
   const mode=state.smartPicker.mode;
-  const f=settings();
+  const f=(state.draws && state.draws.length) ? buildAutoSettings() : settings();
+  const previewRows=rankSystemPreviewRows(nums, mode, 12);
+  const avgScore=previewRows.length ? Math.round(previewRows.reduce((a,r)=>a+r.score,0)/previewRows.length) : 0;
   return {
     mode,
     base:nums,
@@ -1486,7 +1620,10 @@ function buildReducedSystem(selected, target){
     maxZone: maxZoneCount(nums),
     zoneMap: zoneCounts3x3(nums),
     zoneMode: f.zoneMode,
-    note:'Numeri costruiti usando i filtri attivi: pari/dispari, somma, decine, consecutivi, finali, bassi/alti, numeri mancanti del mese, coppie ricorrenti e heatmap zone 3x3. Copiali e ricreali manualmente su Sisal con lo stesso sistema ridotto.'
+    aiMode:f.autoModeUsed || 'manuale',
+    aiAvgScore:avgScore,
+    previewRows,
+    note:'Numeri costruiti con lo stesso motore AI delle sestine: breve periodo forte, medio periodo di stabilità e storico totale come giudice finale. I sistemi Integrale, G5, G4 e G3 non partono più da numeri casuali.'
   };
 }
 function buildSmartSystem(){
@@ -1712,6 +1849,7 @@ function renderSystem(){
     +'<div class="small" style="margin-top:6px">Sistema scelto: gruppi da '+s.target+'</div>'
     +'<div class="small" style="margin-top:6px">Combinazioni integrali 6/6 possibili: '+s.integralRows+'</div>'
     +'<div class="small" style="margin-top:6px">Filtri collegati: somma, pari/dispari, decine, consecutivi, finali, bassi/alti, mancanti del mese, coppie ricorrenti, fuzzy pair, vicini ±1/±2, heatmap zone dinamica</div>'
+    +'<div class="small" style="margin-top:6px">AI multi-periodo: modalità '+(s.aiMode||'-')+' · qualità media preview '+(s.aiAvgScore||0)+'</div>'
     +'<div class="small" style="margin-top:6px">Heatmap: modalità '+(s.zoneMode||'OFF')+' · zone coperte '+(s.coveredZones||0)+' · max stessa zona '+(s.maxZone||0)+'</div>'
     +'<div class="small mono" style="margin-top:6px">Mappa zone 3x3: '+((s.zoneMap||[]).join(' | ')||'-')+'</div>'
     +'<div class="small" style="margin-top:6px">'+s.note+'</div>';
@@ -1720,6 +1858,14 @@ function renderSystem(){
   const div=document.createElement('div'); div.className='item mono';
   div.innerHTML='<div><strong>Numeri da usare su Sisal</strong></div><div style="margin-top:6px">'+numsLine+'</div><div class="small" style="margin-top:8px">Su Sisal seleziona lo stesso sistema '+s.mode+' e poi questi stessi numeri.</div>';
   list.appendChild(div);
+  if(Array.isArray(s.previewRows) && s.previewRows.length){
+    const prev=document.createElement('div');
+    prev.className='item mono';
+    prev.innerHTML='<div><strong>Preview righe più forti nel gruppo</strong></div>'
+      + s.previewRows.map((r,i)=>'<div style="margin-top:6px">'+(i+1)+') '+r.numbers.join(' - ')+' <span class="badge">score '+Math.round(r.score)+'</span></div>').join('')
+      + '<div class="small" style="margin-top:8px">Questa è una preview interna: serve per verificare che il gruppo sistema sia coerente con il motore AI.</div>';
+    list.appendChild(prev);
+  }
   byId('systemCopyBox').value=s.base.join(' ');
 }
 function renderSmartPicker(){
