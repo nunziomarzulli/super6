@@ -563,7 +563,20 @@
 
   <div class="card" style="margin-top:16px">
     <h2>Archivio estrazioni</h2>
-    <div id="drawsList" class="list"></div>
+    <div class="row" style="margin-top:10px">
+      <div>
+        <div class="muted small">Cerca concorso o data</div>
+        <input id="drawArchiveSearch" placeholder="Esempio: 3287 oppure 2026-05-23">
+      </div>
+      <div style="align-self:end">
+        <button class="btn-blue" id="btnSearchDrawArchive">Cerca</button>
+      </div>
+      <div style="align-self:end">
+        <button class="btn-grey" id="btnResetDrawArchive">Mostra ultimi</button>
+      </div>
+    </div>
+    <div class="small muted" id="drawArchiveInfo" style="margin-top:8px"></div>
+    <div id="drawsList" class="list" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -617,6 +630,9 @@ function emptyState(){
   };
 }
 let state=emptyState();
+let openWinsContest=null;
+let drawArchiveSearchTerm='';
+const DRAW_ARCHIVE_LIMIT=80;
 function saveState(){
   try{
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -2495,6 +2511,18 @@ function parseMoneyInput(v){
   const n=Number(s);
   return Number.isFinite(n) ? n : 0;
 }
+function parseCountInput(v){
+  if(v===undefined || v===null) return 0;
+  let s=String(v).trim();
+  if(!s) return 0;
+  s=s.replace(/[\s]/g,'');
+  if(s.includes('.') && s.includes(',')) s=s.replace(/\./g,'').split(',')[0];
+  else if(s.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,'');
+  else if(s.includes(',') && /^\d{1,3}(,\d{3})+$/.test(s)) s=s.replace(/,/g,'');
+  else s=s.split(/[,.]/)[0];
+  const n=Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
 function fmtIntIT(n){
   return Math.round(Number(n)||0).toLocaleString('it-IT');
 }
@@ -2552,8 +2580,11 @@ function renderWinsEditor(draw){
   return html;
 }
 function openWinsEditor(contest){
-  const el=byId('wins-editor-'+contest);
-  if(el) el.classList.toggle('open');
+  openWinsContest = String(openWinsContest)===String(contest) ? null : String(contest);
+  drawArchiveSearchTerm = String(contest);
+  const search=byId('drawArchiveSearch');
+  if(search) search.value=drawArchiveSearchTerm;
+  render();
 }
 function saveWinsForDraw(contest){
   const draw=state.draws.find(d=>String(d.contest)===String(contest));
@@ -2565,12 +2596,15 @@ function saveWinsForDraw(contest){
     const countInput=box.querySelector('[data-win-count="'+c.key+'"]');
     const singleInput=box.querySelector('[data-win-single="'+c.key+'"]');
     draw.prizes[c.key]={
-      count: Math.max(0, Math.round(parseMoneyInput(countInput?.value))),
+      count: Math.max(0, Math.round(parseCountInput(countInput?.value))),
       single: Math.max(0, parseMoneyInput(singleInput?.value))
     };
   });
-  saveState();
-  render();
+  if(saveState()){
+    openWinsContest=null;
+    render();
+    alert('Vincite salvate per il concorso '+contest);
+  }
 }
 
 function render(){
@@ -2678,16 +2712,29 @@ function render(){
   ah.querySelectorAll('[data-rm-arch]').forEach(b=>b.onclick=()=>removeArchived(Number(b.dataset.rmArch)));
 
   const dl=byId('drawsList');
-  dl.innerHTML=state.draws.length?'':'<div class="muted">Nessuna estrazione presente.</div>';
-  state.draws.forEach(d=>{
+  const info=byId('drawArchiveInfo');
+  let archiveRows=state.draws||[];
+  const term=(drawArchiveSearchTerm||'').trim().toLowerCase();
+  if(term){
+    archiveRows=archiveRows.filter(d=>String(d.contest).toLowerCase().includes(term) || String(d.date||'').toLowerCase().includes(term));
+  }
+  const shownRows=term ? archiveRows.slice(0,200) : archiveRows.slice(0,DRAW_ARCHIVE_LIMIT);
+  if(info){
+    info.textContent = term
+      ? ('Risultati ricerca: '+archiveRows.length+'. Mostro massimo 200 card per non rallentare il sito.')
+      : ('Mostro solo gli ultimi '+Math.min(DRAW_ARCHIVE_LIMIT, archiveRows.length)+' concorsi su '+archiveRows.length+' per tenere il sito veloce. Usa Cerca per trovare un concorso vecchio.');
+  }
+  dl.innerHTML=shownRows.length?'':'<div class="muted">Nessuna estrazione presente.</div>';
+  shownRows.forEach(d=>{
     ensureDrawPrizes(d);
     const div=document.createElement('div'); div.className='item';
+    const editorHtml = String(openWinsContest)===String(d.contest) ? renderWinsEditor(d).replace('class="wins-editor"','class="wins-editor open"') : '';
     div.innerHTML='<div><strong>Concorso '+d.contest+'</strong> <span class="badge">'+(d.origin||'manuale')+'</span></div>'
       +'<div class="small" style="margin-top:4px">'+d.date+'</div>'
       +'<div class="mono" style="margin-top:6px">'+d.numbers.join(' - ')+'</div>'
       +'<div class="small" style="margin-top:6px">Jolly: '+d.jolly+' · SuperStar: '+d.superstar+'</div>'
       +renderPrizesSummary(d)
-      +renderWinsEditor(d)
+      +editorHtml
       +'<div class="draw-actions"><button class="draw-win-btn" data-open-wins="'+d.contest+'">Aggiorna vincite</button><button class="btn-red" data-rm-draw="'+d.contest+'">Cancella</button></div>';
     dl.appendChild(div);
   });
@@ -2714,6 +2761,15 @@ function toggleSystemBox(){
 }
 
 function bind(){
+  const archiveSearch=byId('drawArchiveSearch');
+  const btnArchiveSearch=byId('btnSearchDrawArchive');
+  const btnArchiveReset=byId('btnResetDrawArchive');
+  if(archiveSearch){
+    archiveSearch.value=drawArchiveSearchTerm;
+    archiveSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ drawArchiveSearchTerm=archiveSearch.value.trim(); openWinsContest=null; render(); } };
+  }
+  if(btnArchiveSearch) btnArchiveSearch.onclick=()=>{ drawArchiveSearchTerm=(archiveSearch?.value||'').trim(); openWinsContest=null; render(); };
+  if(btnArchiveReset) btnArchiveReset.onclick=()=>{ drawArchiveSearchTerm=''; openWinsContest=null; if(archiveSearch) archiveSearch.value=''; render(); };
   byId('btnImportTxt').onclick=async()=>{
     const f=byId('txtFile').files[0]; if(!f) return msg('msgImport','Scegli prima un file TXT.',true);
     try{ importTxt(await f.text()); } catch(e){ msg('msgImport','Errore nel file TXT: '+e.message,true); }
