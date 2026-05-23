@@ -115,6 +115,17 @@
     .pattern-kpi{background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:12px}
     .pattern-kpi .v{font-size:22px;font-weight:800}
     .pair-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#203963;color:#dfeaff;font-size:12px;font-weight:700}
+
+    .calendar-bars{display:grid;gap:10px;margin-top:12px}
+    .calendar-row{display:grid;grid-template-columns:120px 1fr 64px;gap:10px;align-items:center}
+    .calendar-bar-bg{height:12px;background:#10254d;border-radius:999px;overflow:hidden}
+    .calendar-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#67c0ff,#f1ce66,#66db6b);border-radius:999px}
+    .calendar-days{display:grid;grid-template-columns:repeat(31,1fr);gap:5px;margin-top:12px}
+    .calendar-day{border-radius:8px;background:#10254d;border:1px solid #29446f;text-align:center;padding:7px 0;font-weight:800;font-size:12px;color:#dfeaff}
+    .calendar-day.hot{background:#2f7147;color:#fff;border-color:#66db6b}
+    .calendar-day.mid{background:#604f22;color:#fff;border-color:#f1ce66}
+    .calendar-day.cold{background:#263b64;color:#dfeaff}
+    .calendar-advice{background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:12px;margin-top:12px}
     .pattern-block{margin-top:10px;background:#102852;border:1px solid #29446f;border-radius:14px;padding:10px}
     .pattern-block h4{margin:0 0 8px;font-size:14px;color:#eef4ff}
     .pattern-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
@@ -426,6 +437,57 @@
     <div id="analysisList" class="list"></div>
   </div>
 
+
+
+  <div class="card" style="margin-top:16px" id="calendarDashboard">
+    <h2>Analisi Calendario e Fase Mensile</h2>
+    <p class="muted small">Mostra in modo visibile quali periodi del mese risultano più carichi nello storico. Non usa importi reali Sisal: calcola un indice statistico da ambi, terni, quaterne, cinquine e ripetizioni per data.</p>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <div class="muted small">Data da valutare</div>
+        <input id="calendarTargetDate" type="date">
+      </div>
+      <div>
+        <div class="muted small">Finestra storico calendario</div>
+        <select id="calendarWindow">
+          <option value="365">Ultimi 365 concorsi</option>
+          <option value="720">Ultimi 720 concorsi</option>
+          <option value="all" selected>Tutto lo storico</option>
+        </select>
+      </div>
+      <div style="align-self:end">
+        <button class="btn-blue" id="btnRefreshCalendar">Aggiorna calendario</button>
+      </div>
+    </div>
+
+    <div class="pattern-kpis">
+      <div class="pattern-kpi"><div class="muted small">Fase mese</div><div class="v" id="calPhaseLabel">-</div></div>
+      <div class="pattern-kpi"><div class="muted small">Indice periodo</div><div class="v mono" id="calPhaseScore">0/100</div></div>
+      <div class="pattern-kpi"><div class="muted small">Giorni caldi</div><div class="v mono" id="calHotDays">0</div></div>
+      <div class="pattern-kpi"><div class="muted small">Strategia AI</div><div class="v" id="calAdviceLabel">-</div></div>
+    </div>
+    <div class="phase-meter"><div class="phase-bar" id="calPhaseBar"></div></div>
+    <div id="calendarAdviceBox" class="calendar-advice">Importa lo storico per vedere la fase calendario.</div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div>
+        <h3>Fasce del mese</h3>
+        <div id="calendarDecadeBars" class="calendar-bars"></div>
+      </div>
+      <div>
+        <h3>Giorni del mese</h3>
+        <div id="calendarDaysGrid" class="calendar-days"></div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+    <h3>Nota vincite manuali</h3>
+    <div class="item">
+      <div class="small">Per avere il grafico dei soldi pagati servirebbero i dati reali di vincita per concorso, inseriti a mano. Per tutto lo storico è troppo lungo. Però da ora puoi usare questa sezione calendario come proxy statistico: mostra dove lo storico crea più combinazioni ricorrenti.</div>
+      <div class="small" style="margin-top:8px">Se in futuro vuoi segnare solo i concorsi recenti con ambo, terno, quaterna, cinquina e importo, si può aggiungere una mini tabella manuale senza rifare tutto lo storico.</div>
+    </div>
+  </div>
 
   <div class="card" style="margin-top:16px" id="patternDashboard">
     <h2>Analisi Pattern e Fase</h2>
@@ -802,7 +864,8 @@ function buildAutoSettings(){
     consensusCount: results >= 30 ? 14 : 12,
     personalAvoid: 'ON',
     imperfectRate: mode === 'aggressive' ? 28 : (mode === 'balanced' ? 20 : 12),
-    autoModeUsed: mode
+    autoModeUsed: mode,
+    calendarTargetDate: (byId('calendarTargetDate')?.value || byId('playDate')?.value || state.playDate || '')
   };
 }
 function randomComboFromPool(pool){
@@ -1440,6 +1503,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   const learnedHits=learnedCoverage(nums, latestDraw, learned||[]);
   const periodScore=aiComboPeriodScore(nums, periodCtx);
   const dynCompat=aiDynamicCompatibility(nums, periodCtx);
+  const calendarScore=calendarComboScore(nums, (f && f.calendarTargetDate) || byId('calendarTargetDate')?.value || byId('playDate')?.value || state.playDate || '');
   const repeatPenaltyValue=repeatedPenalty(nums, errorProfile||{});
   const stats={
     sum,
@@ -1463,7 +1527,8 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     parityOk:parityOk(nums),
     periodScore,
     dynCompatScore:dynCompat.score,
-    dynCompatLabel:dynCompat.label
+    dynCompatLabel:dynCompat.label,
+    calendarScore
   };
   let penalty=0;
   if(!stats.parityOk) penalty+=14;
@@ -1483,6 +1548,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   if(stats.periodScore<9) penalty+=6;
   if(stats.dynCompatScore<58) penalty+=12;
   else if(stats.dynCompatScore<70) penalty+=4;
+  if(stats.calendarScore<35) penalty+=5;
   if(stats.nearLatestWide===0) penalty+=4;
   penalty += stats.repeatPenalty * (f.personalAvoid==='ON' ? 2.6 * tuned.repeatPenalty : 0);
   const bonus =
@@ -1498,6 +1564,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     ((opts.shiftVariant)?8:0) +
     (stats.periodScore*1.15) +
     (stats.dynCompatScore*0.55) +
+    (stats.calendarScore*0.16) +
     ((tuned.driftBias<0 && nums.some(n=>n>1))?1.2:0) +
     ((tuned.driftBias>0 && nums.some(n=>n<90))?1.2:0);
   const score = Math.round((120 - penalty + bonus)*100)/100;
@@ -2105,6 +2172,127 @@ function heatClass(v,min,max){
   if(p>=0.20) return 'heat-1';
   return 'heat-0';
 }
+
+function calendarDecadeFromDate(dateStr){
+  const d = dateStr ? new Date(dateStr+'T00:00:00') : null;
+  if(!d || isNaN(d.getTime())) return null;
+  const day=d.getDate();
+  if(day<=10) return 'inizio';
+  if(day<=20) return 'meta';
+  return 'fine';
+}
+function calendarDecadeLabel(key){
+  if(key==='inizio') return 'Inizio mese';
+  if(key==='meta') return 'Metà mese';
+  if(key==='fine') return 'Fine mese';
+  return '-';
+}
+function getCalendarWindowDraws(){
+  const val=byId('calendarWindow')?.value || 'all';
+  if(val==='all') return state.draws || [];
+  return (state.draws||[]).slice(0, parseInt(val,10)||365);
+}
+function drawPatternStrength(draw, previous){
+  if(!draw || !Array.isArray(draw.numbers) || !previous || !previous.length) return 0;
+  const nums=sortNums(draw.numbers);
+  let score=0;
+  [2,3,4,5].forEach(k=>{
+    const rows=manualComboRows(nums, previous, k);
+    const seen=rows.filter(r=>r.v>0).length;
+    const hits=rows.reduce((a,r)=>a+r.v,0);
+    if(k===2) score += seen*1.0 + hits*0.20;
+    if(k===3) score += seen*5.0 + hits*1.00;
+    if(k===4) score += seen*10.0 + hits*2.00;
+    if(k===5) score += seen*18.0 + hits*3.00;
+  });
+  return Math.round(score*10)/10;
+}
+function calendarStats(){
+  const draws = [...getCalendarWindowDraws()].filter(d=>d && d.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const buckets={inizio:{label:'Inizio mese',score:0,count:0},meta:{label:'Metà mese',score:0,count:0},fine:{label:'Fine mese',score:0,count:0}};
+  const days={};
+  for(let i=0;i<draws.length;i++){
+    const d=draws[i];
+    const key=calendarDecadeFromDate(d.date);
+    if(!key) continue;
+    const previous=draws.slice(Math.max(0,i-180),i);
+    const strength=drawPatternStrength(d, previous);
+    buckets[key].score += strength; buckets[key].count++;
+    const day=new Date(d.date+'T00:00:00').getDate();
+    if(!days[day]) days[day]={score:0,count:0};
+    days[day].score += strength; days[day].count++;
+  }
+  Object.values(buckets).forEach(b=>{ b.avg=b.count?Math.round((b.score/b.count)*10)/10:0; });
+  Object.keys(days).forEach(k=>{ days[k].avg=days[k].count?Math.round((days[k].score/days[k].count)*10)/10:0; });
+  const maxBucket=Math.max(1,...Object.values(buckets).map(b=>b.avg));
+  const maxDay=Math.max(1,...Object.values(days).map(d=>d.avg||0));
+  return {buckets,days,maxBucket,maxDay,total:draws.length};
+}
+function calendarPeriodProfile(dateStr){
+  const key=calendarDecadeFromDate(dateStr);
+  if(!key) return null;
+  const draws=getCalendarWindowDraws().filter(d=>calendarDecadeFromDate(d.date)===key);
+  if(!draws.length) return null;
+  const numFreq=countNumberFrequency(draws);
+  const pairFreq=countPairFrequency(draws);
+  const terni=countComboFrequency(draws,3);
+  return {key,draws,numFreq,pairFreq,terni};
+}
+function calendarComboScore(nums,dateStr){
+  const prof=calendarPeriodProfile(dateStr);
+  if(!prof) return 50;
+  const maxNum=Math.max(1,...Object.values(prof.numFreq));
+  const heat=(nums.reduce((a,n)=>a+(prof.numFreq[n]||0),0)/6)/maxNum*100;
+  const rows2=manualComboRows(nums, prof.draws, 2);
+  const rows3=manualComboRows(nums, prof.draws, 3);
+  const pairHits=rows2.reduce((a,r)=>a+r.v,0);
+  const terniHits=rows3.reduce((a,r)=>a+r.v,0);
+  const score=Math.round(Math.max(0,Math.min(100, heat*0.45 + Math.min(35,pairHits*1.4) + Math.min(20,terniHits*5))));
+  return score;
+}
+function renderCalendarDashboard(){
+  const box=byId('calendarDashboard'); if(!box) return;
+  const target=byId('calendarTargetDate');
+  if(target && !target.value){ target.value = byId('playDate')?.value || state.playDate || ''; }
+  const st=calendarStats();
+  const bars=byId('calendarDecadeBars');
+  const daysGrid=byId('calendarDaysGrid');
+  const targetDate=target?.value || '';
+  const targetKey=calendarDecadeFromDate(targetDate) || 'meta';
+  const current=st.buckets[targetKey] || {avg:0,count:0};
+  const score=Math.round((current.avg / Math.max(1,st.maxBucket))*100);
+  const hotDays=Object.values(st.days).filter(d=>st.maxDay && (d.avg/st.maxDay)>=0.75).length;
+  let advice='Normale';
+  if(score>=75) advice='Aggressivo';
+  else if(score<=42) advice='Prudente';
+  byId('calPhaseLabel').textContent=calendarDecadeLabel(targetKey);
+  byId('calPhaseScore').textContent=score+'/100';
+  byId('calHotDays').textContent=String(hotDays);
+  byId('calAdviceLabel').textContent=advice;
+  byId('calPhaseBar').style.width=score+'%';
+  byId('calendarAdviceBox').innerHTML = st.total
+    ? '<strong>'+calendarDecadeLabel(targetKey)+'</strong>: indice '+score+'/100. Strategia suggerita: <strong>'+advice+'</strong>. Il generatore usa questo peso calendario insieme a storico, pattern e fase.'
+    : 'Importa lo storico per vedere la fase calendario.';
+  if(bars){
+    bars.innerHTML=Object.entries(st.buckets).map(([k,b])=>{
+      const pct=Math.round((b.avg/Math.max(1,st.maxBucket))*100);
+      return '<div class="calendar-row"><div>'+b.label+'</div><div class="calendar-bar-bg"><div class="calendar-bar-fill" style="width:'+pct+'%"></div></div><div class="mono">'+pct+'</div></div>';
+    }).join('');
+  }
+  if(daysGrid){
+    daysGrid.innerHTML='';
+    for(let d=1;d<=31;d++){
+      const item=st.days[d] || {avg:0,count:0};
+      const pct=Math.round((item.avg/Math.max(1,st.maxDay))*100);
+      const div=document.createElement('div');
+      div.className='calendar-day '+(pct>=75?'hot':(pct>=45?'mid':'cold'));
+      div.title='Giorno '+d+' · indice '+pct+'/100 · campioni '+(item.count||0);
+      div.textContent=d;
+      daysGrid.appendChild(div);
+    }
+  }
+}
+
 function renderPatternDashboard(){
   if(!byId('patternDashboard')) return;
   const draws = getPatternDraws();
@@ -2286,7 +2474,7 @@ function render(){
     div.innerHTML='<div><strong>Sestina '+(idx+1)+'</strong><span class="tag">PRONTA DA GIOCARE</span></div>'
       +'<div class="mono" style="margin-top:8px;font-size:24px;font-weight:700">'+g.numbers.join(' - ')+'</div>'
       +renderExtraBalls(g, null)
-      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · compatibilità dinamica: '+(meta.dynCompatScore??'-')+'/100 · profilo: '+(meta.label||meta.variant||'base')+'</div>'
+      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · compatibilità dinamica: '+(meta.dynCompatScore??'-')+'/100 · calendario: '+(meta.calendarScore??'-')+'/100 · profilo: '+(meta.label||meta.variant||'base')+'</div>'
       +'<div class="small" style="margin-top:4px">Modalità motore: '+((state.settings && state.settings.autoModeUsed) || 'balanced')+' · Questa è una delle sestine finali già selezionate dal motore.</div>';
     gen.appendChild(div);
   });
@@ -2367,6 +2555,7 @@ function render(){
   });
   dl.querySelectorAll('[data-rm-draw]').forEach(b=>b.onclick=()=>removeDraw(b.dataset.rmDraw));
 
+  renderCalendarDashboard();
   renderPatternDashboard();
   renderSmartPicker();
   syncSmartAutoCount();
@@ -2404,6 +2593,9 @@ function bind(){
   byId('btnMarkPlayed').onclick=markPlayed;
   if(byId('btnToggleSystem')) byId('btnToggleSystem').onclick=toggleSystemBox;
   if(byId('btnExportArchivedHits')) byId('btnExportArchivedHits').onclick=exportArchivedHitsCSV;
+  if(byId('btnRefreshCalendar')) byId('btnRefreshCalendar').onclick=()=>{ renderCalendarDashboard(); msg('msgPattern','Calendario aggiornato.'); };
+  if(byId('calendarWindow')) byId('calendarWindow').onchange=renderCalendarDashboard;
+  if(byId('calendarTargetDate')) byId('calendarTargetDate').onchange=renderCalendarDashboard;
   if(byId('btnAnalyzePatternNums')) byId('btnAnalyzePatternNums').onclick=analyzePatternNums;
   if(byId('btnRefreshPatterns')) byId('btnRefreshPatterns').onclick=()=>{ renderPatternDashboard(); msg('msgPattern','Pattern aggiornati.'); };
   if(byId('patternWindow')) byId('patternWindow').onchange=()=>{ renderPatternDashboard(); if((byId('patternManualNums')?.value||'').trim()) analyzePatternNums(); };
