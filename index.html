@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v35 Definitivo AI</title>
+  <title>Super6plus v37 Definitivo AI + Vincite Reali</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -96,6 +96,27 @@
     .archive-item-title{font-weight:800;color:var(--text);font-size:15px;line-height:1.2}
     .archive-item-date{font-size:12px;color:var(--muted);margin-top:2px}
     .archive-delete-btn{padding:6px 10px;border-radius:10px;font-size:12px;line-height:1;background:var(--red);color:#fff;flex:0 0 auto}
+
+    .draw-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .draw-actions button{flex:0 0 auto;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1}
+    .draw-win-btn{background:var(--blue);color:#07203e}
+    .draw-prize-box{margin-top:10px;background:#0a1836;border:1px solid #29446f;border-radius:14px;padding:10px}
+    .draw-prize-title{font-weight:800;margin-bottom:8px;color:#eef4ff}
+    .draw-prize-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .draw-prize-row{background:#102852;border:1px solid #29446f;border-radius:12px;padding:9px}
+    .draw-prize-row strong{display:block;margin-bottom:4px}
+    .draw-prize-row .line{font-size:12px;color:#dbe7ff;margin-top:2px}
+    .draw-prize-total{margin-top:8px;background:#13284f;border:1px solid #355785;border-radius:12px;padding:10px;font-weight:800}
+    .wins-editor{display:none;margin-top:10px;background:#081730;border:1px solid #355785;border-radius:14px;padding:10px}
+    .wins-editor.open{display:block}
+    .wins-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .wins-editor-line{background:#102852;border:1px solid #29446f;border-radius:12px;padding:8px}
+    .wins-editor-line label{display:block;font-size:12px;color:#a9b9d8;margin-bottom:6px;font-weight:700}
+    .wins-editor-line .row{gap:6px}
+    .wins-editor-line input{padding:8px;border-radius:9px}
+    @media (max-width:900px){
+      .draw-prize-grid,.wins-editor-grid{grid-template-columns:1fr}
+    }
     .nums-hitline.compact{gap:6px;margin-top:8px}
     .ball.compact{width:30px;height:30px;font-size:13px}
 
@@ -145,7 +166,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v35 Definitivo AI</h1>
+  <h1>Super6plus v37 Definitivo AI + Vincite Reali</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -441,7 +462,7 @@
 
   <div class="card" style="margin-top:16px" id="calendarDashboard">
     <h2>Analisi Calendario e Fase Mensile</h2>
-    <p class="muted small">Mostra in modo visibile quali periodi del mese risultano più carichi nello storico. Non usa importi reali Sisal: calcola un indice statistico da ambi, terni, quaterne, cinquine e ripetizioni per data.</p>
+    <p class="muted small">Mostra in modo visibile quali periodi del mese risultano più carichi nello storico. Ora può usare anche le vincite reali inserite manualmente nell’archivio estrazioni.</p>
 
     <div class="row" style="margin-top:12px">
       <div>
@@ -484,8 +505,8 @@
     <div class="sep"></div>
     <h3>Nota vincite manuali</h3>
     <div class="item">
-      <div class="small">Per avere il grafico dei soldi pagati servirebbero i dati reali di vincita per concorso, inseriti a mano. Per tutto lo storico è troppo lungo. Però da ora puoi usare questa sezione calendario come proxy statistico: mostra dove lo storico crea più combinazioni ricorrenti.</div>
-      <div class="small" style="margin-top:8px">Se in futuro vuoi segnare solo i concorsi recenti con ambo, terno, quaterna, cinquina e importo, si può aggiungere una mini tabella manuale senza rifare tutto lo storico.</div>
+      <div class="small">Le vincite reali si aggiornano direttamente nelle card blu dell’Archivio estrazioni. Premi “Aggiorna vincite”, inserisci numero vincite e vincita singola per Ambo, Terno, Quaterna, Cinquina, 5+1 e 6.</div>
+      <div class="small" style="margin-top:8px">Il sistema calcola automaticamente il totale pagato per categoria e il totale premi del concorso. Puoi aggiornare lo storico poco alla volta, anche solo dai concorsi recenti.</div>
     </div>
   </div>
 
@@ -672,6 +693,7 @@ function migrateStateForExtras(){
     if(!Number.isInteger(g.superstar) || g.superstar<1 || g.superstar>90) g.superstar=ex.superstar;
   });
   (state.archivedHits||[]).forEach(ensureArchivedExtras);
+  (state.draws||[]).forEach(ensureDrawPrizes);
 }
 function getPlayOutcome(play, draw){
   const drawRef = draw || getDrawByContest(play?.contest);
@@ -772,8 +794,9 @@ function saveDraw(){
   const k=keyOf(nums);
   const sameComboOther=state.draws.find(d=>keyOf(d.numbers)===k && d.contest!==contest);
   if(sameComboOther) return msg('msgDraw','Questa sestina è già presente al concorso '+sameComboOther.contest+'.',true);
-  const rec={contest,date,numbers:sortNums(nums),jolly,superstar,origin:'manuale'};
   const ix=state.draws.findIndex(d=>d.contest===contest);
+  const oldPrizes = ix>=0 ? state.draws[ix].prizes : null;
+  const rec=ensureDrawPrizes({contest,date,numbers:sortNums(nums),jolly,superstar,origin:'manuale',prizes:oldPrizes||emptyPrizes()});
   if(ix>=0){ state.draws[ix]=rec; msg('msgDraw','Concorso '+contest+' aggiornato correttamente.'); }
   else { state.draws.push(rec); msg('msgDraw','Concorso '+contest+' salvato correttamente.'); }
   state.draws.sort((a,b)=>Number(b.contest)-Number(a.contest));
@@ -2438,6 +2461,118 @@ function analyzePatternNums(){
   msg('msgPattern','Analisi completa su ambi, terni, quaterne, cinquine e sestina: '+nums.join('-')+'.');
 }
 
+const WIN_CATS = [
+  {key:'ambo', label:'Ambo'},
+  {key:'terno', label:'Terno'},
+  {key:'quaterna', label:'Quaterna'},
+  {key:'cinquina', label:'Cinquina'},
+  {key:'cinquePiuUno', label:'5+1'},
+  {key:'sei', label:'6'}
+];
+
+function emptyPrizes(){
+  const out={};
+  WIN_CATS.forEach(c=>out[c.key]={count:0, single:0});
+  return out;
+}
+function ensureDrawPrizes(draw){
+  if(!draw) return draw;
+  if(!draw.prizes || typeof draw.prizes!=='object') draw.prizes=emptyPrizes();
+  WIN_CATS.forEach(c=>{
+    if(!draw.prizes[c.key] || typeof draw.prizes[c.key]!=='object') draw.prizes[c.key]={count:0,single:0};
+    draw.prizes[c.key].count = Number(draw.prizes[c.key].count)||0;
+    draw.prizes[c.key].single = Number(draw.prizes[c.key].single)||0;
+  });
+  return draw;
+}
+function parseMoneyInput(v){
+  if(v===undefined || v===null) return 0;
+  let s=String(v).trim();
+  if(!s) return 0;
+  s=s.replace(/[€\s]/g,'');
+  if(s.includes(',') && s.includes('.')) s=s.replace(/\./g,'').replace(',', '.');
+  else if(s.includes(',')) s=s.replace(',', '.');
+  const n=Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+function fmtIntIT(n){
+  return Math.round(Number(n)||0).toLocaleString('it-IT');
+}
+function fmtEuroIT(n){
+  return (Number(n)||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:2});
+}
+function prizeCategoryTotal(rec){
+  return (Number(rec?.count)||0) * (Number(rec?.single)||0);
+}
+function prizeGrandTotal(prizes){
+  let total=0;
+  WIN_CATS.forEach(c=>{ total += prizeCategoryTotal(prizes?.[c.key]); });
+  return total;
+}
+function renderPrizesSummary(draw){
+  ensureDrawPrizes(draw);
+  const total=prizeGrandTotal(draw.prizes);
+  const hasData=WIN_CATS.some(c=>(draw.prizes[c.key].count||0)>0 || (draw.prizes[c.key].single||0)>0);
+  if(!hasData){
+    return '<div class="draw-prize-box"><div class="small muted">Vincite non ancora inserite. Quando Sisal pubblica i dati, premi “Aggiorna vincite”.</div></div>';
+  }
+  let html='<div class="draw-prize-box"><div class="draw-prize-title">Vincite reali concorso</div><div class="draw-prize-grid">';
+  WIN_CATS.forEach(c=>{
+    const rec=draw.prizes[c.key]||{count:0,single:0};
+    const catTotal=prizeCategoryTotal(rec);
+    html+='<div class="draw-prize-row">'
+      +'<strong>'+c.label+'</strong>'
+      +'<div class="line">'+fmtIntIT(rec.count)+' vincite</div>'
+      +'<div class="line">Vincita singola: '+fmtEuroIT(rec.single)+'</div>'
+      +'<div class="line">Totale pagato: '+fmtEuroIT(catTotal)+'</div>'
+      +'</div>';
+  });
+  html+='</div><div class="draw-prize-total">Totale premi pagati concorso: '+fmtEuroIT(total)+'</div></div>';
+  return html;
+}
+function renderWinsEditor(draw){
+  ensureDrawPrizes(draw);
+  let html='<div class="wins-editor" id="wins-editor-'+draw.contest+'">'
+    +'<div class="draw-prize-title">Aggiorna vincite pubblicate da Sisal</div>'
+    +'<div class="wins-editor-grid">';
+  WIN_CATS.forEach(c=>{
+    const rec=draw.prizes[c.key]||{count:0,single:0};
+    html+='<div class="wins-editor-line">'
+      +'<label>'+c.label+'</label>'
+      +'<div class="row">'
+      +'<input data-win-count="'+c.key+'" value="'+(rec.count||'')+'" placeholder="N. vincite">'
+      +'<input data-win-single="'+c.key+'" value="'+(rec.single||'')+'" placeholder="Vincita singola €">'
+      +'</div>'
+      +'</div>';
+  });
+  html+='</div><div class="draw-actions">'
+    +'<button class="btn-green" data-save-wins="'+draw.contest+'">Salva vincite</button>'
+    +'<button class="btn-grey" data-close-wins="'+draw.contest+'">Chiudi</button>'
+    +'</div></div>';
+  return html;
+}
+function openWinsEditor(contest){
+  const el=byId('wins-editor-'+contest);
+  if(el) el.classList.toggle('open');
+}
+function saveWinsForDraw(contest){
+  const draw=state.draws.find(d=>String(d.contest)===String(contest));
+  if(!draw) return;
+  ensureDrawPrizes(draw);
+  const box=byId('wins-editor-'+contest);
+  if(!box) return;
+  WIN_CATS.forEach(c=>{
+    const countInput=box.querySelector('[data-win-count="'+c.key+'"]');
+    const singleInput=box.querySelector('[data-win-single="'+c.key+'"]');
+    draw.prizes[c.key]={
+      count: Math.max(0, Math.round(parseMoneyInput(countInput?.value))),
+      single: Math.max(0, parseMoneyInput(singleInput?.value))
+    };
+  });
+  saveState();
+  render();
+}
+
 function render(){
   byId('s_draws').textContent=String(state.draws.length);
   byId('s_played').textContent=String(state.played.length);
@@ -2545,15 +2680,21 @@ function render(){
   const dl=byId('drawsList');
   dl.innerHTML=state.draws.length?'':'<div class="muted">Nessuna estrazione presente.</div>';
   state.draws.forEach(d=>{
+    ensureDrawPrizes(d);
     const div=document.createElement('div'); div.className='item';
-    div.innerHTML='<div><strong>Concorso '+d.contest+'</strong> <span class="badge">'+d.origin+'</span></div>'
+    div.innerHTML='<div><strong>Concorso '+d.contest+'</strong> <span class="badge">'+(d.origin||'manuale')+'</span></div>'
       +'<div class="small" style="margin-top:4px">'+d.date+'</div>'
       +'<div class="mono" style="margin-top:6px">'+d.numbers.join(' - ')+'</div>'
       +'<div class="small" style="margin-top:6px">Jolly: '+d.jolly+' · SuperStar: '+d.superstar+'</div>'
-      +'<div class="row" style="margin-top:8px"><button class="btn-red" data-rm-draw="'+d.contest+'">Cancella</button></div>';
+      +renderPrizesSummary(d)
+      +renderWinsEditor(d)
+      +'<div class="draw-actions"><button class="draw-win-btn" data-open-wins="'+d.contest+'">Aggiorna vincite</button><button class="btn-red" data-rm-draw="'+d.contest+'">Cancella</button></div>';
     dl.appendChild(div);
   });
   dl.querySelectorAll('[data-rm-draw]').forEach(b=>b.onclick=()=>removeDraw(b.dataset.rmDraw));
+  dl.querySelectorAll('[data-open-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.openWins));
+  dl.querySelectorAll('[data-save-wins]').forEach(b=>b.onclick=()=>saveWinsForDraw(b.dataset.saveWins));
+  dl.querySelectorAll('[data-close-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.closeWins));
 
   renderCalendarDashboard();
   renderPatternDashboard();
