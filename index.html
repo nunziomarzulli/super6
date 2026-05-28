@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v40 Performance</title>
+  <title>Super6plus v41 Turbo</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -106,6 +106,15 @@
     .draw-prize-total-mini{font-size:18px;font-weight:900;color:#66db6b}
     .draw-prize-toggle{background:#203963;color:#dfeaff;border:1px solid #355785;padding:6px 9px;border-radius:9px;font-size:11px;font-weight:900}
     .draw-prize-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+    .draw-prize-strip.compact{display:none}
+    .draw-prize-box.has-data .draw-prize-strip.compact{display:flex}
+    .draw-prize-box.compact{padding:8px;border-radius:12px}
+    .draw-prize-box.compact .draw-prize-head{gap:6px}
+    .draw-prize-box.compact .draw-prize-title{font-size:12px}
+    .draw-prize-box.compact .draw-prize-total-mini{font-size:15px}
+    .draw-prize-box.compact .draw-prize-toggle{padding:5px 8px;font-size:10px}
+    .draw-prize-box.compact .draw-prize-chip{font-size:10px;padding:4px 6px}
+    .turbo-note{display:inline-block;margin-left:6px;padding:3px 7px;border-radius:999px;background:#263b64;color:#dfeaff;font-size:11px;font-weight:800}
     .draw-prize-chip{background:#102852;border:1px solid #29446f;border-radius:10px;padding:5px 7px;font-size:11px;line-height:1.15;color:#dbe7ff}
     .draw-prize-chip b{color:#67c0ff;font-size:12px}
     .draw-prize-chip .paid{color:#66db6b;font-weight:900}
@@ -179,8 +188,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v40 Performance</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
+  <h1>Super6plus v41 Turbo</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v41 Turbo: generazione automatica intelligente più veloce, storico preservato, vincite reali compatte, salvataggio rinforzato e filtro venerdì beneficenza.</p>
 
   <div class="grid g3" style="margin-top:16px">
     <div class="stat"><div class="muted">Estrazioni</div><div class="n mono" id="s_draws">0</div></div>
@@ -429,7 +438,7 @@
         <div class="item">
           <strong>Come scriverle</strong>
           <div class="small" style="margin-top:8px">Una giocata per riga.</div>
-          <div class="small" style="margin-top:4px">Sono accettati spazi, virgole, punto e virgola, trattini e barre. Se inserisci 8 numeri, gli ultimi due sono Jolly e SuperStar.</div>
+          <div class="small" style="margintop:4px">Sono accettati spazi, virgole, punto e virgola, trattini e barre. Se inserisci 8 numeri, gli ultimi due sono Jolly e SuperStar.</div>
           <div class="small" style="margin-top:4px">Le righe non valide vengono saltate e segnalate.</div>
         </div>
         <div class="item">
@@ -921,7 +930,8 @@ function buildAutoSettings(){
     personalAvoid: 'ON',
     imperfectRate: mode === 'aggressive' ? 28 : (mode === 'balanced' ? 20 : 12),
     autoModeUsed: mode,
-    calendarTargetDate: (byId('calendarTargetDate')?.value || byId('playDate')?.value || state.playDate || '')
+    calendarTargetDate: (byId('calendarTargetDate')?.value || byId('playDate')?.value || state.playDate || ''),
+    charityFriday: charityFridayMode(byId('playDate')?.value || state.playDate || '')
   };
 }
 function randomComboFromPool(pool){
@@ -1006,10 +1016,10 @@ function generate(){
   const seen=new Set();
   let tries=0;
   const multiplier =
-    f.results <= 12 ? 900 :
-    f.results <= 30 ? 1200 :
-    1500;
-  const targetPool = Math.max(f.pool, f.results * multiplier);
+    f.results <= 12 ? 260 :
+    f.results <= 30 ? 360 :
+    460;
+  const targetPool = Math.min(28000, Math.max(f.pool, f.results * multiplier));
   while(tries<targetPool){
     const nums=randomCombo();
     const k=keyOf(nums);
@@ -1038,6 +1048,20 @@ function generate(){
     }
     tries++;
   }
+  if(scoreboard.length < f.results){
+    let rescue=0;
+    while(scoreboard.length < f.results && rescue < 12000){
+      const nums=randomCombo();
+      const k=keyOf(nums);
+      if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){ rescue++; continue; }
+      seen.add(k);
+      const meta=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true});
+      if(meta.score>=126 && (meta.dynCompatScore||0)>=50){
+        scoreboard.push({numbers:nums,meta:{...meta,variant:'wild',label:'Turbo rescue',note:'Sestina di recupero controllata per completare velocemente la generazione.'}});
+      }
+      rescue++;
+    }
+  }
   const imperfectQuota=Math.max(0, Math.min(50, +f.imperfectRate||20))/100;
   const variantQuota={
     core:Math.max(2, Math.ceil(f.results*0.34)),
@@ -1050,7 +1074,8 @@ function generate(){
   state.playContest=contest; state.playDate=byId('playDate').value || state.playDate || '';
   saveState(); render();
   const counts={core:state.generated.filter(x=>x.meta?.variant==='core').length,shift:state.generated.filter(x=>x.meta?.variant==='shift').length,wild:state.generated.filter(x=>x.meta?.variant==='wild').length,absolute:state.generated.filter(x=>x.meta?.variant==='absolute').length};
-  msg('msgGen', state.generated.length ? ('Generate '+state.generated.length+' sestine finali. Core: '+counts.core+' · Shift: '+counts.shift+' · Absolute: '+counts.absolute+' · Wild: '+counts.wild+'.') : 'Nessuna sestina trovata con questi filtri.', !state.generated.length);
+  const fridayTxt = f.charityFriday ? ' · Venerdì beneficenza attivo: 1-2 numeri mancanti favoriti' : '';
+  msg('msgGen', state.generated.length ? ('Generate '+state.generated.length+' sestine finali in modalità Turbo. Core: '+counts.core+' · Shift: '+counts.shift+' · Absolute: '+counts.absolute+' · Wild: '+counts.wild+fridayTxt+'.') : 'Nessuna sestina trovata con questi filtri.', !state.generated.length);
 }
 function markPlayed(){
   const contest=(byId('playContest').value.trim() || state.playContest || '').trim();
@@ -1194,6 +1219,15 @@ function getMonthMissingNumbers(){
   const out=[];
   for(let n=1;n<=90;n++) if(!seen.has(n)) out.push(n);
   return out;
+}
+
+function isFridayDate(dateStr){
+  if(!dateStr) return false;
+  const d=new Date(String(dateStr)+'T12:00:00');
+  return !Number.isNaN(d.getTime()) && d.getDay()===5;
+}
+function charityFridayMode(dateStr){
+  return isFridayDate(dateStr);
 }
 function recurringPairs(limitDraws=12){
   const draws=state.draws.slice(0,limitDraws);
@@ -1584,7 +1618,8 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     periodScore,
     dynCompatScore:dynCompat.score,
     dynCompatLabel:dynCompat.label,
-    calendarScore
+    calendarScore,
+    charityFriday: charityFridayMode((f && f.calendarTargetDate) || byId('playDate')?.value || state.playDate || '')
   };
   let penalty=0;
   if(!stats.parityOk) penalty+=14;
@@ -1597,6 +1632,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
   if(stats.low<f.lowMin) penalty+=6*(f.lowMin-stats.low);
   if(stats.low>f.lowMax) penalty+=6*(stats.low-f.lowMax);
   if(missingSet.size && stats.missCount<1) penalty+=9;
+  if(stats.charityFriday && missingSet.size && stats.missCount<1) penalty+=14;
   if(missingSet.size && stats.missCount>2) penalty+=6*(stats.missCount-2);
   if(stats.recurrent>1) penalty+=5*(stats.recurrent-1);
   if(!zoneRulePasses(nums,f)) penalty+=10;
@@ -1617,6 +1653,7 @@ function evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestD
     (stats.zoneDir*4.5) +
     (stats.coveredZones*5) +
     ((stats.missCount>=1&&stats.missCount<=2)?7:0) +
+    ((stats.charityFriday && stats.missCount>=1 && stats.missCount<=2)?10:0) +
     ((opts.shiftVariant)?8:0) +
     (stats.periodScore*1.15) +
     (stats.dynCompatScore*0.55) +
@@ -2558,35 +2595,31 @@ function renderPrizesSummary(draw, expanded=false){
   ensureDrawPrizes(draw);
   const total=prizeGrandTotal(draw.prizes);
   const hasData=WIN_CATS.some(c=>(draw.prizes[c.key].count||0)>0 || (draw.prizes[c.key].single||0)>0);
-  if(!hasData){
-    return '<div class="draw-prize-box"><div class="draw-prize-head">'
-      +'<div class="draw-prize-title">Vincite reali</div>'
-      +'<button class="draw-prize-toggle" data-open-wins="'+draw.contest+'">Inserisci vincite</button>'
-      +'</div><div class="small muted" style="margin-top:6px">Non ancora inserite. Quando Sisal pubblica i dati, premi “Inserisci vincite”.</div></div>';
+  const boxClass='draw-prize-box compact '+(hasData?'has-data':'');
+  const subtitle = hasData ? 'Vincite inserite' : 'Nessuna vincita inserita';
+  let html='<div class="'+boxClass+'">'
+    +'<div class="draw-prize-head">'
+    +'<div><div class="draw-prize-title">Vincite reali concorso</div><div class="small muted">'+subtitle+'</div></div>'
+    +'<div class="draw-prize-total-mini">'+fmtEuroIT(total)+'</div>'
+    +'<button class="draw-prize-toggle" data-toggle-prizes="'+draw.contest+'">'+(expanded?'Chiudi':'Apri menu')+'</button>'
+    +'</div>';
+
+  if(hasData){
+    let chipHtml='';
+    WIN_CATS.forEach(c=>{
+      const rec=draw.prizes[c.key]||{count:0,single:0};
+      const catTotal=prizeCategoryTotal(rec);
+      if((rec.count||0)>0 || (rec.single||0)>0 || catTotal>0){
+        chipHtml+='<div class="draw-prize-chip"><b>'+c.label+'</b> '
+          +'<span>'+fmtIntIT(rec.count)+'</span> × '
+          +'<span>'+fmtEuroIT(rec.single)+'</span> = '
+          +'<span class="paid">'+fmtEuroIT(catTotal)+'</span></div>';
+      }
+    });
+    html+='<div class="draw-prize-strip compact">'+chipHtml+'</div>';
   }
 
-  let chipHtml='';
-  WIN_CATS.forEach(c=>{
-    const rec=draw.prizes[c.key]||{count:0,single:0};
-    const catTotal=prizeCategoryTotal(rec);
-    const zero=((rec.count||0)===0 && (rec.single||0)===0 && catTotal===0);
-    chipHtml+='<div class="draw-prize-chip '+(zero?'zero':'')+'">'
-      +'<b>'+c.label+'</b> '
-      +'<span>'+fmtIntIT(rec.count)+'</span> × '
-      +'<span>'+fmtEuroIT(rec.single)+'</span> = '
-      +'<span class="paid">'+fmtEuroIT(catTotal)+'</span>'
-      +'</div>';
-  });
-
-  let html='<div class="draw-prize-box">'
-    +'<div class="draw-prize-head">'
-    +'<div class="draw-prize-title">Vincite reali concorso</div>'
-    +'<div class="draw-prize-total-mini">'+fmtEuroIT(total)+'</div>'
-    +'<button class="draw-prize-toggle" data-toggle-prizes="'+draw.contest+'">'+(expanded?'Chiudi dettaglio':'Vedi dettaglio')+'</button>'
-    +'</div>'
-    +'<div class="draw-prize-strip">'+chipHtml+'</div>'
-    +'<div class="draw-prize-details '+(expanded?'open':'')+'"><div class="draw-prize-grid">';
-
+  html+='<div class="draw-prize-details '+(expanded?'open':'')+'"><div class="draw-prize-grid">';
   WIN_CATS.forEach(c=>{
     const rec=draw.prizes[c.key]||{count:0,single:0};
     const catTotal=prizeCategoryTotal(rec);
@@ -2650,11 +2683,16 @@ function saveWinsForDraw(contest){
       single: Math.max(0, parseMoneyInput(singleInput?.value))
     };
   });
-  if(saveState()){
+  const ok = saveState();
+  if(ok){
     openWinsContest=null;
     openPrizeContest=String(contest);
+    drawArchiveSearchTerm=String(contest);
+    const search=byId('drawArchiveSearch');
+    if(search) search.value=drawArchiveSearchTerm;
     render();
-    alert('Vincite salvate per il concorso '+contest);
+    const info=byId('drawArchiveInfo');
+    if(info) info.textContent='Vincite salvate e mantenute per il concorso '+contest+'.';
   }
 }
 
