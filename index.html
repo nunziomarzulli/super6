@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v41 Turbo</title>
+  <title>Super6plus v41 Turbo anti-freeze</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -188,7 +188,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v41 Turbo</h1>
+  <h1>Super6plus v41 Turbo anti-freeze</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v41 Turbo: generazione automatica intelligente più veloce, storico preservato, vincite reali compatte, salvataggio rinforzato e filtro venerdì beneficenza.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -655,10 +655,10 @@ let state=emptyState();
 let openWinsContest=null;
 let openPrizeContest=null;
 let drawArchiveSearchTerm='';
-const DRAW_ARCHIVE_LIMIT=20;
-const ARCHIVED_HITS_LIMIT=25;
-const PLAYED_LIST_LIMIT=25;
-const ANALYSIS_SELECT_LIMIT=180;
+const DRAW_ARCHIVE_LIMIT=10;
+const ARCHIVED_HITS_LIMIT=15;
+const PLAYED_LIST_LIMIT=15;
+const ANALYSIS_SELECT_LIMIT=80;
 function saveState(){
   try{
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -999,83 +999,101 @@ function pickFinalLines(scoreboard, results, variantQuota){
   return selected.slice(0,results);
 }
 
-function generate(){
+let GENERATING_NOW = false;
+async function generate(){
+  if(GENERATING_NOW) return msg('msgGen','Generazione già in corso. Attendi qualche secondo.',true);
   if(!state.draws.length) return msg('msgGen','Prima importa lo storico.',true);
-  const f=buildAutoSettings(); state.settings=f;
-  const extracted=new Set(state.draws.map(d=>keyOf(d.numbers)));
-  const played=new Set(state.played.map(p=>p.contest+'|'+keyOf(p.numbers)));
-  const contest=(byId('playContest').value.trim() || state.playContest || nextContest());
-  const pairMap=recurringPairs(12);
-  const missingSet=new Set(getMonthMissingNumbers());
-  const recentProfile=recentZoneProfile(f.zoneRecent);
-  const direction=zoneDirectionProfile(Math.max(6, Math.floor((f.zoneRecent||18)/2)), Math.max(6, f.zoneRecent||18));
-  const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
-  const errorProfile=personalErrorProfile();
-  const learned=(f.shiftLearn==='ON') ? learnedShiftDeltas(errorProfile) : [];
-  const scoreboard=[];
-  const seen=new Set();
-  let tries=0;
-  const multiplier =
-    f.results <= 12 ? 260 :
-    f.results <= 30 ? 360 :
-    460;
-  const targetPool = Math.min(28000, Math.max(f.pool, f.results * multiplier));
-  while(tries<targetPool){
-    const nums=randomCombo();
-    const k=keyOf(nums);
-    if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){tries++; continue;}
-    seen.add(k);
-    const strict=comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:false});
-    const loose=!strict && comboPassesAdvanced(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true});
-    if(!strict && !loose){ tries++; continue; }
-    const baseMeta=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:loose});
-    const baseVariant = strict ? 'core' : 'wild';
-    const baseLabel = strict ? 'Core' : 'Wild';
-    scoreboard.push({numbers:nums,meta:{...baseMeta,variant:baseVariant,label:baseLabel,note:strict?'Sestina base forte filtrata con motore Absolute.':'Sestina imperfetta controllata scelta per copertura aggiuntiva.'}});
-    const variants=buildShiftVariants(nums, learned, f.mirrorMode).slice(0, Math.max(8, (+f.ensembleDepth||3)*10));
-    for(const shifted of variants){
-      const sk=keyOf(shifted.numbers);
-      if(seen.has(sk)||extracted.has(sk)||played.has(contest+'|'+sk)) continue;
-      const allowImperfect = shifted.label.toLowerCase().includes('selective') || shifted.label.toLowerCase().includes('mirror');
-      const ok=comboPassesAdvanced(shifted.numbers,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect,shiftVariant:true});
-      if(!ok) continue;
-      seen.add(sk);
-      const shiftMeta=evaluateCombo(shifted.numbers,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect,shiftVariant:true});
-      let tag='shift';
-      if(shifted.label.toLowerCase().includes('mirror')) tag='absolute';
-      else if(allowImperfect) tag='wild';
-      scoreboard.push({numbers:shifted.numbers,meta:{...shiftMeta,variant:tag,label:shifted.label,note:'Variante adattiva generata dal motore Absolute.'}});
-    }
-    tries++;
-  }
-  if(scoreboard.length < f.results){
-    let rescue=0;
-    while(scoreboard.length < f.results && rescue < 12000){
+  GENERATING_NOW = true;
+  const btn=byId('btnGenerate');
+  if(btn){ btn.disabled=true; btn.textContent='Genero...'; }
+  try{
+    const f=buildAutoSettings();
+    f.pool = Math.min(+f.pool || 25000, 9000);
+    state.settings=f;
+    msg('msgGen','Sto generando in modalità Turbo leggera. La pagina resta utilizzabile...',false);
+    await new Promise(r=>setTimeout(r,0));
+
+    const extracted=new Set((state.draws||[]).map(d=>keyOf(d.numbers)));
+    const played=new Set((state.played||[]).map(p=>p.contest+'|'+keyOf(p.numbers)));
+    const contest=(byId('playContest').value.trim() || state.playContest || nextContest());
+    const pairMap=recurringPairs(12);
+    const missingSet=new Set(getMonthMissingNumbers());
+    const recentProfile=recentZoneProfile(f.zoneRecent);
+    const direction=zoneDirectionProfile(Math.max(6, Math.floor((f.zoneRecent||18)/2)), Math.max(6, f.zoneRecent||18));
+    const latestDraw=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+    const errorProfile=personalErrorProfile();
+    const learned=(f.shiftLearn==='ON') ? learnedShiftDeltas(errorProfile).slice(0,8) : [];
+    const scoreboard=[];
+    const seen=new Set();
+    let tries=0;
+    const wanted=Math.max(1, Math.min(50, f.results||8));
+    const targetPool=Math.min(12000, Math.max(3500, wanted * 360));
+    const minScoreStrict = wanted <= 12 ? 148 : 143;
+    const minScoreLoose = wanted <= 12 ? 132 : 126;
+
+    while(tries < targetPool && scoreboard.length < Math.max(wanted*12, 80)){
+      if(tries % 400 === 0){
+        msg('msgGen','Genero... tentativi '+tries+' / '+targetPool+' · candidate '+scoreboard.length,false);
+        await new Promise(r=>setTimeout(r,0));
+      }
       const nums=randomCombo();
       const k=keyOf(nums);
-      if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){ rescue++; continue; }
+      if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){tries++; continue;}
       seen.add(k);
       const meta=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true});
-      if(meta.score>=126 && (meta.dynCompatScore||0)>=50){
-        scoreboard.push({numbers:nums,meta:{...meta,variant:'wild',label:'Turbo rescue',note:'Sestina di recupero controllata per completare velocemente la generazione.'}});
+      const charityOk = !f.charityFriday || !missingSet.size || (meta.missCount>=1 && meta.missCount<=2);
+      const strict = meta.penalty===0 && meta.score>=minScoreStrict && (meta.dynCompatScore||0)>=58 && charityOk;
+      const loose = meta.score>=minScoreLoose && (meta.dynCompatScore||0)>=48 && charityOk;
+      if(strict || loose){
+        const label = strict ? 'Turbo core' : 'Turbo soft';
+        const variant = strict ? 'core' : 'wild';
+        scoreboard.push({numbers:nums,meta:{...meta,variant,label,note:'Sestina generata con motore v41 Turbo alleggerito anti-freeze.'}});
       }
-      rescue++;
+      tries++;
     }
+
+    if(scoreboard.length < wanted){
+      let rescue=0;
+      while(scoreboard.length < wanted && rescue < 3500){
+        if(rescue % 500 === 0) await new Promise(r=>setTimeout(r,0));
+        const nums=randomCombo();
+        const k=keyOf(nums);
+        if(seen.has(k)||extracted.has(k)||played.has(contest+'|'+k)){rescue++; continue;}
+        seen.add(k);
+        const meta=evaluateCombo(nums,f,pairMap,missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true});
+        const charityOk = !f.charityFriday || !missingSet.size || (meta.missCount>=1 && meta.missCount<=2);
+        if(charityOk){
+          scoreboard.push({numbers:nums,meta:{...meta,variant:'wild',label:'Turbo rescue',note:'Sestina di recupero per completare la generazione senza bloccare il browser.'}});
+        }
+        rescue++;
+      }
+    }
+
+    const variantQuota={
+      core:Math.max(1, Math.ceil(wanted*0.55)),
+      shift:0,
+      absolute:0,
+      wild:Math.max(1, Math.ceil(wanted*0.45))
+    };
+    state.generated=pickFinalLines(scoreboard, wanted, variantQuota)
+      .sort((a,b)=>(b.meta?.score||0)-(a.meta?.score||0))
+      .slice(0,wanted)
+      .map(g=>{ const ex=buildAutoExtras(g.numbers); return {...g, jolly:ex.jolly, superstar:ex.superstar}; });
+    state.absoluteReport=buildAbsoluteReport(errorProfile, learned, state.generated);
+    state.playContest=contest;
+    state.playDate=byId('playDate').value || state.playDate || '';
+    saveState();
+    render();
+    const counts={core:state.generated.filter(x=>x.meta?.variant==='core').length,wild:state.generated.filter(x=>x.meta?.variant==='wild').length};
+    const fridayTxt = f.charityFriday ? ' · Venerdì beneficenza attivo: 1-2 numeri mancanti obbligatori' : '';
+    msg('msgGen', state.generated.length ? ('Generate '+state.generated.length+' sestine finali. Core: '+counts.core+' · Soft/Rescue: '+counts.wild+fridayTxt+'.') : 'Nessuna sestina trovata.', !state.generated.length);
+  }catch(e){
+    console.error(e);
+    msg('msgGen','Errore durante la generazione: '+(e.message||e),true);
+  }finally{
+    GENERATING_NOW=false;
+    if(btn){ btn.disabled=false; btn.textContent='Genera sestine'; }
   }
-  const imperfectQuota=Math.max(0, Math.min(50, +f.imperfectRate||20))/100;
-  const variantQuota={
-    core:Math.max(2, Math.ceil(f.results*0.34)),
-    shift:Math.max(2, Math.ceil(f.results*0.24)),
-    absolute:Math.max(1, Math.ceil(f.results*0.16)),
-    wild:Math.max(1, Math.round(f.results*imperfectQuota))
-  };
-  state.generated=pickFinalLines(scoreboard, f.results, variantQuota).map(g=>{ const ex=buildAutoExtras(g.numbers); return {...g, jolly:ex.jolly, superstar:ex.superstar}; });
-  state.absoluteReport=buildAbsoluteReport(errorProfile, learned, state.generated);
-  state.playContest=contest; state.playDate=byId('playDate').value || state.playDate || '';
-  saveState(); render();
-  const counts={core:state.generated.filter(x=>x.meta?.variant==='core').length,shift:state.generated.filter(x=>x.meta?.variant==='shift').length,wild:state.generated.filter(x=>x.meta?.variant==='wild').length,absolute:state.generated.filter(x=>x.meta?.variant==='absolute').length};
-  const fridayTxt = f.charityFriday ? ' · Venerdì beneficenza attivo: 1-2 numeri mancanti favoriti' : '';
-  msg('msgGen', state.generated.length ? ('Generate '+state.generated.length+' sestine finali in modalità Turbo. Core: '+counts.core+' · Shift: '+counts.shift+' · Absolute: '+counts.absolute+' · Wild: '+counts.wild+fridayTxt+'.') : 'Nessuna sestina trovata con questi filtri.', !state.generated.length);
 }
 function markPlayed(){
   const contest=(byId('playContest').value.trim() || state.playContest || '').trim();
