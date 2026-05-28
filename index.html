@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v39 Vincite Compatte + Vincite Reali</title>
+  <title>Super6plus v40 Performance</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -179,7 +179,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v39 Vincite Compatte + Vincite Reali</h1>
+  <h1>Super6plus v40 Performance</h1>
   <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione Definitiva AI: generazione automatica intelligente, storico preservato, sistema avanzato nascosto, export archivio, learning persistente da estrazioni e giocate, anti-bias dinamico, memoria mensile e ranking evolutivo.</p>
 
   <div class="grid g3" style="margin-top:16px">
@@ -646,7 +646,10 @@ let state=emptyState();
 let openWinsContest=null;
 let openPrizeContest=null;
 let drawArchiveSearchTerm='';
-const DRAW_ARCHIVE_LIMIT=80;
+const DRAW_ARCHIVE_LIMIT=20;
+const ARCHIVED_HITS_LIMIT=25;
+const PLAYED_LIST_LIMIT=25;
+const ANALYSIS_SELECT_LIMIT=180;
 function saveState(){
   try{
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -2681,7 +2684,8 @@ function render(){
   if(byId('manualContest')) byId('manualContest').value = byId('manualContest').value || state.latestCheckedContest || '';
 
   const sel=byId('analysisContest');
-  sel.innerHTML='<option value="">Seleziona concorso</option>'+state.draws.map(d=>'<option value="'+d.contest+'">Concorso '+d.contest+' · '+d.date+'</option>').join('');
+  const selectRows=(state.draws||[]).slice(0, ANALYSIS_SELECT_LIMIT);
+  sel.innerHTML='<option value="">Seleziona concorso</option>'+selectRows.map(d=>'<option value="'+d.contest+'">Concorso '+d.contest+' · '+d.date+'</option>').join('');
 
   const gen=byId('generatedList');
   gen.innerHTML=state.generated.length?'':'<div class="muted">Scegli quante sestine vuoi e premi Genera. Il motore decide da solo i parametri.</div>';
@@ -2720,7 +2724,8 @@ function render(){
 
   const pl=byId('playedList');
   pl.innerHTML=state.played.length?'':'<div class="muted">Nessuna giocata salvata.</div>';
-  state.played.forEach((p,idx)=>{
+  state.played.slice(-PLAYED_LIST_LIMIT).reverse().forEach((p,shownIdx)=>{
+    const idx = state.played.length - 1 - shownIdx;
     ensurePlayExtras(p);
     const draw=getDrawByContest(p.contest);
     const outcome=getPlayOutcome(p, draw);
@@ -2743,8 +2748,9 @@ function render(){
   pl.querySelectorAll('[data-archive-play]').forEach(b=>b.onclick=()=>archivePlayed(Number(b.dataset.archivePlay)));
 
   const ah=byId('archivedHitsList');
-  ah.innerHTML=(state.archivedHits&&state.archivedHits.length)?'':'<div class="muted">Nessuna giocata archiviata con numeri presi.</div>';
-  (state.archivedHits||[]).forEach((a,idx)=>{
+  ah.innerHTML=(state.archivedHits&&state.archivedHits.length)?'<div class="small muted">Mostro le ultime '+Math.min(ARCHIVED_HITS_LIMIT,state.archivedHits.length)+' giocate archiviate su '+state.archivedHits.length+'. Usa Scarica archivio per esportarle tutte.</div>':'<div class="muted">Nessuna giocata archiviata con numeri presi.</div>';
+  (state.archivedHits||[]).slice(-ARCHIVED_HITS_LIMIT).reverse().forEach((a,shownIdx)=>{
+    const idx = state.archivedHits.length - 1 - shownIdx;
     ensureArchivedExtras(a);
     const div=document.createElement('div'); div.className='item archive-item-compact';
     div.innerHTML='<div class="archive-item-top">'
@@ -2792,8 +2798,7 @@ function render(){
   dl.querySelectorAll('[data-save-wins]').forEach(b=>b.onclick=()=>saveWinsForDraw(b.dataset.saveWins));
   dl.querySelectorAll('[data-close-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.closeWins));
 
-  renderCalendarDashboard();
-  renderPatternDashboard();
+  // Performance: calendario e pattern si aggiornano solo quando premi i rispettivi pulsanti.
   renderSmartPicker();
   syncSmartAutoCount();
   renderSystem();
@@ -3059,55 +3064,4 @@ evaluateCombo = function(nums, ...rest){
 };
 
 </script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyD-Xlk7L5P_BVwfedSTpVgD_udfMO0m9Mk",
-  authDomain: "super6-da756.firebaseapp.com",
-  projectId: "super6-da756",
-  storageBucket: "super6-da756.firebasestorage.app",
-  messagingSenderId: "465162407478",
-  appId: "1:465162407478:web:25442ee4bf5e71e7f71297",
-  measurementId: "G-6N3S5C7LT1"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const statoRef = doc(db, "super6", "stato");
-
-// salva online
-const oldSaveState = window.saveState;
-window.saveState = function() {
-  const result = oldSaveState();
-  setDoc(statoRef, {
-    data: window.state || state,
-    updatedAt: new Date()
-  });
-  return result;
-};
-
-// carica online all'apertura
-async function caricaOnline() {
-  onSnapshot(statoRef, (snap) => {
-    if (snap.exists()) {
-      const online = snap.data().data;
-      if (online) {
-        window.state = online;
-        state = online;
-        localStorage.setItem(KEY, JSON.stringify(state));
-        render();
-        console.log("🔥 Sync live da Firebase");
-      }
-    } else {
-      setDoc(statoRef, {
-        data: state,
-        updatedAt: new Date()
-      });
-      console.log("Primo salvataggio online creato");
-    }
-  });
-}
-
-caricaOnline();
-</script>
+<!-- Firebase live sync disattivato in v40 Performance: era la causa principale dei blocchi pagina con storico grande. -->
