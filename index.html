@@ -3200,5 +3200,187 @@ evaluateCombo = function(nums, ...rest){
   return res;
 };
 
+
+/* =========================================================
+   SUPER6PLUS v43 CLOUD SYNC - Firebase Realtime Database
+   Funziona su GitHub Pages / file HTML statico.
+   I dati restano anche in locale, ma se attivi Firebase
+   Mac e iPhone si aggiornano in tempo reale.
+   ========================================================= */
+const CLOUD_CFG_KEY = 'super6plus_cloud_firebase_config_v43';
+const CLOUD_PATH_KEY = 'super6plus_cloud_path_v43';
+let CLOUD = {
+  enabled:false,
+  app:null,
+  db:null,
+  ref:null,
+  ready:false,
+  pulling:false,
+  pushTimer:null,
+  lastApplied:0,
+  api:null
+};
+
+function cloudStatus(text, isErr=false){
+  const el=document.getElementById('cloudStatus');
+  if(el){ el.textContent=text||''; el.className='msg '+(isErr?'err':'ok'); }
+}
+function cloudDefaultPath(){ return 'super6plus/live/main'; }
+function cloudGetConfig(){
+  try{ return JSON.parse(localStorage.getItem(CLOUD_CFG_KEY)||'null'); }catch(e){ return null; }
+}
+function cloudGetPath(){ return localStorage.getItem(CLOUD_PATH_KEY) || cloudDefaultPath(); }
+function cloudSetConfigFromText(txt){
+  let clean=(txt||'').trim();
+  if(!clean) throw new Error('Config Firebase mancante.');
+  clean = clean.replace(/^const\s+firebaseConfig\s*=\s*/,'').replace(/^var\s+firebaseConfig\s*=\s*/,'').replace(/^let\s+firebaseConfig\s*=\s*/,'').replace(/;\s*$/,'');
+  const cfg=JSON.parse(clean);
+  if(!cfg.apiKey || !cfg.databaseURL || !cfg.projectId) throw new Error('Config incompleta: servono apiKey, projectId e databaseURL.');
+  localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+  return cfg;
+}
+function cloudInstallPanel(){
+  if(document.getElementById('cloudSyncPanel')) return;
+  const html = `
+  <div class="card" id="cloudSyncPanel" style="margin-top:16px;border-color:#67c0ff">
+    <h2>Cloud Sync Mac / iPhone</h2>
+    <p class="muted small">Per aggiornare Mac e iPhone nello stesso momento serve Firebase Realtime Database. Incolla qui la configurazione Firebase una sola volta su ogni dispositivo.</p>
+    <div class="grid g2" style="margin-top:12px">
+      <div>
+        <div class="muted small">Firebase config JSON</div>
+        <textarea id="cloudFirebaseConfig" rows="7" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"https://...firebaseio.com","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+      </div>
+      <div>
+        <div class="muted small">Percorso dati condiviso</div>
+        <input id="cloudDataPath" value="${cloudGetPath()}">
+        <div class="row" style="margin-top:10px">
+          <button class="btn-blue" id="btnCloudActivate">Attiva Cloud Sync</button>
+          <button class="btn-green" id="btnCloudUpload">Invia questi dati al cloud</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn-grey" id="btnCloudDownload">Scarica dati dal cloud</button>
+          <button class="btn-red" id="btnCloudForget">Disattiva su questo dispositivo</button>
+        </div>
+        <div class="msg" id="cloudStatus">Cloud Sync non ancora attivo.</div>
+        <div class="small muted" style="margin-top:8px">Quando è attivo, ogni salvataggio viene inviato online e gli altri dispositivi aperti sulla stessa pagina si aggiornano da soli.</div>
+      </div>
+    </div>
+  </div>`;
+  const stats = document.querySelector('.grid.g3');
+  if(stats) stats.insertAdjacentHTML('afterend', html);
+  const old=cloudGetConfig();
+  if(old){ byId('cloudFirebaseConfig').value=JSON.stringify(old,null,2); }
+  byId('cloudDataPath').value=cloudGetPath();
+  byId('btnCloudActivate').onclick=cloudActivateFromPanel;
+  byId('btnCloudUpload').onclick=()=>cloudPushNow(true);
+  byId('btnCloudDownload').onclick=cloudPullOnce;
+  byId('btnCloudForget').onclick=cloudForget;
+}
+async function cloudLoadApi(){
+  if(CLOUD.api) return CLOUD.api;
+  const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+  const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
+  CLOUD.api = { ...appMod, ...dbMod };
+  return CLOUD.api;
+}
+async function cloudInit(cfg, path){
+  const api = await cloudLoadApi();
+  if(!CLOUD.app){ CLOUD.app = api.initializeApp(cfg); }
+  CLOUD.db = api.getDatabase(CLOUD.app);
+  CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
+  CLOUD.ready = true;
+  CLOUD.enabled = true;
+  cloudStatus('Cloud Sync attivo. In attesa dati live...');
+  api.onValue(CLOUD.ref, snap=>{
+    const data=snap.val();
+    if(!data || !data.state) return;
+    const remoteTime = Number(data.updatedAt || 0);
+    if(remoteTime && remoteTime <= CLOUD.lastApplied) return;
+    CLOUD.lastApplied = remoteTime || Date.now();
+    CLOUD.pulling = true;
+    try{
+      state = Object.assign(emptyState(), data.state);
+      migrateStateForExtras();
+      localStorage.setItem(KEY, JSON.stringify(state));
+      render();
+      cloudInstallPanel();
+      cloudStatus('Aggiornato dal cloud: '+new Date(CLOUD.lastApplied).toLocaleString('it-IT'));
+    }catch(e){ cloudStatus('Errore lettura cloud: '+e.message,true); }
+    CLOUD.pulling = false;
+  }, err=>cloudStatus('Errore Firebase: '+err.message,true));
+}
+async function cloudActivateFromPanel(){
+  try{
+    const cfg=cloudSetConfigFromText(byId('cloudFirebaseConfig').value);
+    const path=(byId('cloudDataPath').value||cloudDefaultPath()).trim();
+    localStorage.setItem(CLOUD_PATH_KEY,path);
+    await cloudInit(cfg,path);
+    await cloudPushNow(true);
+  }catch(e){ cloudStatus(e.message,true); }
+}
+function cloudSchedulePush(){
+  if(CLOUD.pulling || !CLOUD.ready || !CLOUD.ref) return;
+  clearTimeout(CLOUD.pushTimer);
+  CLOUD.pushTimer=setTimeout(()=>cloudPushNow(false), 700);
+}
+async function cloudPushNow(force){
+  try{
+    if(!CLOUD.ready){
+      const cfg=cloudGetConfig();
+      if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return; }
+      await cloudInit(cfg, cloudGetPath());
+    }
+    const api=await cloudLoadApi();
+    const updatedAt=Date.now();
+    CLOUD.lastApplied=updatedAt;
+    await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v43', state });
+    cloudStatus((force?'Dati inviati al cloud. ':'Salvataggio cloud automatico. ')+new Date(updatedAt).toLocaleString('it-IT'));
+  }catch(e){ cloudStatus('Errore invio cloud: '+e.message,true); }
+}
+async function cloudPullOnce(){
+  try{
+    if(!CLOUD.ready){
+      const cfg=cloudGetConfig();
+      if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return; }
+      await cloudInit(cfg, cloudGetPath());
+    }
+    const api=await cloudLoadApi();
+    const snap=await api.get(CLOUD.ref);
+    const data=snap.val();
+    if(!data || !data.state){ cloudStatus('Nel cloud non ci sono ancora dati.', true); return; }
+    CLOUD.pulling=true;
+    state=Object.assign(emptyState(), data.state);
+    migrateStateForExtras();
+    localStorage.setItem(KEY, JSON.stringify(state));
+    render();
+    cloudInstallPanel();
+    CLOUD.pulling=false;
+    cloudStatus('Dati scaricati dal cloud.');
+  }catch(e){ CLOUD.pulling=false; cloudStatus('Errore download cloud: '+e.message,true); }
+}
+function cloudForget(){
+  localStorage.removeItem(CLOUD_CFG_KEY);
+  localStorage.removeItem(CLOUD_PATH_KEY);
+  CLOUD.ready=false; CLOUD.enabled=false; CLOUD.ref=null;
+  const t=byId('cloudFirebaseConfig'); if(t) t.value='';
+  cloudStatus('Cloud Sync disattivato su questo dispositivo. I dati locali restano salvati.');
+}
+
+const __CLOUD_originalSaveState = saveState;
+saveState = function(){
+  const ok = __CLOUD_originalSaveState();
+  if(ok) cloudSchedulePush();
+  return ok;
+};
+
+window.addEventListener('DOMContentLoaded', async ()=>{
+  cloudInstallPanel();
+  const cfg=cloudGetConfig();
+  if(cfg){
+    try{ await cloudInit(cfg, cloudGetPath()); }
+    catch(e){ cloudStatus('Cloud non attivo: '+e.message,true); }
+  }
+});
+
 </script>
-<!-- Firebase live sync disattivato in v40 Performance: era la causa principale dei blocchi pagina con storico grande. -->
+<!-- Firebase live sync riattivabile in v43 Cloud Sync con Firebase Realtime Database. -->
