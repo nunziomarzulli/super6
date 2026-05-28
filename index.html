@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v41 Turbo anti-freeze</title>
+  <title>Super6plus v42 Save Sync Fix</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -188,8 +188,14 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v41 Turbo anti-freeze</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v41 Turbo: generazione automatica intelligente più veloce, storico preservato, vincite reali compatte, salvataggio rinforzato e filtro venerdì beneficenza.</p>
+  <h1>Super6plus v42 Save Sync Fix</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v42: salvataggio rinforzato, giocate salvate subito, concorsi registrati in modo stabile e backup JSON per passare da Mac a smartphone.</p>
+
+  <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
+    <h2>Salvataggio e sincronizzazione</h2>
+    <p class="small muted">Il sito salva automaticamente su questo dispositivo dopo ogni operazione importante. Mac e smartphone non condividono lo stesso localStorage: per portarli allo stesso punto devi usare Esporta backup JSON sul dispositivo aggiornato e Importa backup JSON sull’altro dispositivo.</p>
+    <div class="small ok" id="saveStatus">Pronto.</div>
+  </div>
 
   <div class="grid g3" style="margin-top:16px">
     <div class="stat"><div class="muted">Estrazioni</div><div class="n mono" id="s_draws">0</div></div>
@@ -605,6 +611,7 @@
 <script>
 const KEY='superenalotto_v25_click_play';
 const LEGACY_KEYS=['superenalotto_v22_sisal_copy_numbers'];
+const MIRROR_KEY=KEY+'_mirror_v42';
 
 const SMART_MODES = {
   INTEGRALE:{label:'Sistema Integrale', min:6, max:12, target:6},
@@ -659,34 +666,78 @@ const DRAW_ARCHIVE_LIMIT=10;
 const ARCHIVED_HITS_LIMIT=15;
 const PLAYED_LIST_LIMIT=15;
 const ANALYSIS_SELECT_LIMIT=80;
+function normalizeState(){
+  const base=emptyState();
+  state=Object.assign(base, state||{});
+  if(!Array.isArray(state.draws)) state.draws=[];
+  if(!Array.isArray(state.played)) state.played=[];
+  if(!Array.isArray(state.generated)) state.generated=[];
+  if(!Array.isArray(state.archivedHits)) state.archivedHits=[];
+  if(!state.settings) state.settings=base.settings;
+  if(!state.smartPicker) state.smartPicker=base.smartPicker;
+  if(!state.learning) state.learning=base.learning;
+  state.draws.forEach(ensureDrawPrizes);
+  migrateStateForExtras();
+  return state;
+}
+function setSaveStatus(text,isErr=false){
+  const el=document.getElementById('saveStatus');
+  if(!el) return;
+  el.textContent=text||'';
+  el.className='small '+(isErr?'err':'ok');
+}
 function saveState(){
   try{
-    localStorage.setItem(KEY, JSON.stringify(state));
+    normalizeState();
+    state.savedAt=new Date().toISOString();
+    state.savedFrom='local-browser';
+    const payload=JSON.stringify(state);
+    localStorage.setItem(KEY, payload);
+    localStorage.setItem(MIRROR_KEY, payload);
+    try{ sessionStorage.setItem(KEY, payload); }catch(e){}
+    setSaveStatus('Salvato su questo dispositivo: '+new Date().toLocaleString('it-IT')+'. Per vedere gli stessi dati su smartphone/Mac usa Esporta backup JSON e poi Importa backup JSON.');
     return true;
   }catch(e){
-    msg('msgImport','Errore salvataggio locale: memoria browser piena.',true);
+    setSaveStatus('Errore salvataggio locale: memoria browser piena o permessi negati.',true);
+    msg('msgImport','Errore salvataggio locale: memoria browser piena o permessi negati.',true);
     return false;
   }
+}
+function pickLatestRaw(candidates){
+  let best=null, bestTime=0;
+  candidates.filter(Boolean).forEach(raw=>{
+    try{
+      const obj=JSON.parse(raw);
+      const t=Date.parse(obj.savedAt||obj.learning?.lastUpdate||'')||0;
+      if(!best || t>=bestTime){ best=raw; bestTime=t; }
+    }catch(e){}
+  });
+  return best;
 }
 function loadState(){
   cleanupOldKeys();
   try{
-    let raw=localStorage.getItem(KEY);
-    if(!raw){
-      for(const legacyKey of LEGACY_KEYS){
-        const legacyRaw=localStorage.getItem(legacyKey);
-        if(legacyRaw){ raw=legacyRaw; break; }
-      }
+    const candidates=[localStorage.getItem(KEY), localStorage.getItem(MIRROR_KEY)];
+    try{ candidates.push(sessionStorage.getItem(KEY)); }catch(e){}
+    for(const legacyKey of LEGACY_KEYS){
+      const legacyRaw=localStorage.getItem(legacyKey);
+      if(legacyRaw) candidates.push(legacyRaw);
     }
+    const raw=pickLatestRaw(candidates);
     if(raw){
       state=Object.assign(emptyState(), JSON.parse(raw));
-      if(!Array.isArray(state.archivedHits)) state.archivedHits=[];
-      migrateStateForExtras();
-      try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+      normalizeState();
+      try{
+        const payload=JSON.stringify(state);
+        localStorage.setItem(KEY, payload);
+        localStorage.setItem(MIRROR_KEY, payload);
+      }catch(e){}
+    }else{
+      state=emptyState();
     }
   }catch(e){ state=emptyState(); }
 }
-function resetState(){ state=emptyState(); localStorage.removeItem(KEY); render(); }
+function resetState(){ state=emptyState(); localStorage.removeItem(KEY); localStorage.removeItem(MIRROR_KEY); try{sessionStorage.removeItem(KEY);}catch(e){} render(); }
 function msg(id,text,isErr=false){
   const el=document.getElementById(id); el.textContent=text||''; el.className='msg '+(text?(isErr?'err':'ok'):'');
 }
@@ -777,8 +828,9 @@ function importTxt(text){
   const total=rows.length;
   state.draws=rows.map((r,idx)=>({contest:String(total-idx), date:r.date, numbers:r.numbers, jolly:r.jolly, superstar:r.superstar, origin:'TXT'}));
   state.generated=[]; state.currentSystem=null;
+  state.draws.forEach(ensureDrawPrizes);
   if(state.draws.length){ state.playContest=String(Number(state.draws[0].contest)+1); state.playDate=''; }
-  saveState(); render(); msg('msgImport','Storico importato: '+rows.length+' estrazioni.');
+  saveState(); render(); msg('msgImport','Storico importato e salvato: '+rows.length+' estrazioni.');
 }
 function exportJson(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -816,7 +868,12 @@ function exportArchivedHitsCSV(){
   document.body.removeChild(a);
 }
 function importJson(text){
-  const data=JSON.parse(text); state=Object.assign(emptyState(), data); saveState(); render(); msg('msgImport','Backup JSON importato.');
+  const data=JSON.parse(text);
+  state=Object.assign(emptyState(), data);
+  normalizeState();
+  saveState();
+  render();
+  msg('msgImport','Backup JSON importato e salvato su questo dispositivo.');
 }
 function nextContest(){ return String(state.draws.reduce((m,d)=>Math.max(m,Number(d.contest)||0),0)+1||1); }
 function prefillNext(){
@@ -825,7 +882,7 @@ function prefillNext(){
   byId('playContest').value=nextContest(); byId('playDate').value='';
 }
 function saveDraw(){
-  const contest=byId('drawContest').value.trim(), date=byId('drawDate').value.trim();
+  const contest=String(byId('drawContest').value || '').trim(), date=String(byId('drawDate').value || '').trim();
   const jolly=parseInt(byId('drawJolly').value,10), superstar=parseInt(byId('drawSuper').value,10);
   const nums=numsFromInputs('.drawNum');
   if(!contest) return msg('msgDraw','Concorso mancante.',true);
@@ -842,9 +899,11 @@ function saveDraw(){
   if(ix>=0){ state.draws[ix]=rec; msg('msgDraw','Concorso '+contest+' aggiornato correttamente.'); }
   else { state.draws.push(rec); msg('msgDraw','Concorso '+contest+' salvato correttamente.'); }
   state.draws.sort((a,b)=>Number(b.contest)-Number(a.contest));
-  state.generated=[]; state.playContest=String(Number(contest)+1); state.latestCheckedContest=contest;
+  state.generated=[]; state.playContest=String(Number(contest)+1); state.playDate='';
+  state.latestCheckedContest=String(contest);
   const playsForContest=state.played.filter(p=>String(p.contest)===String(contest));
-  saveState(); render();
+  const savedOk=saveState();
+  render();
   if(playsForContest.length){
     const positive=playsForContest.filter(p=>getHitsForPlay(p, rec).length>0).length;
     msg('msgDraw','Concorso '+contest+' salvato. Giocate trovate: '+playsForContest.length+' · con almeno 1 numero preso: '+positive+'.');
@@ -1096,19 +1155,33 @@ async function generate(){
   }
 }
 function markPlayed(){
-  const contest=(byId('playContest').value.trim() || state.playContest || '').trim();
-  const date=(byId('playDate').value.trim() || state.playDate || '').trim();
+  const contest=String(byId('playContest').value || state.playContest || '').trim();
+  const date=String(byId('playDate').value || state.playDate || '').trim();
   if(!contest) return msg('msgGen','Concorso da giocare mancante.',true);
   if(!state.generated.length) return msg('msgGen','Prima genera le sestine.',true);
   let added=0;
   state.generated.forEach(g=>{
+    ensurePlayExtras(g);
     const k=keyOf(g.numbers);
-    if(!state.played.some(p=>p.contest===contest && keyOf(p.numbers)===k)){
-      state.played.push({contest,date,numbers:g.numbers,jolly:g.jolly,superstar:g.superstar,source:(g.meta?.label||g.meta?.variant||'generatore')});
+    if(!state.played.some(p=>String(p.contest)===String(contest) && keyOf(p.numbers)===k)){
+      state.played.unshift({
+        id:'play_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+        contest:String(contest),
+        date,
+        numbers:[...g.numbers],
+        jolly:g.jolly,
+        superstar:g.superstar,
+        source:(g.meta?.label||g.meta?.variant||'generatore'),
+        savedAt:new Date().toISOString()
+      });
       added++;
     }
   });
-  saveState(); render(); msg('msgGen', added?('Segnate '+added+' sestine come giocate per il concorso '+contest+'.'):'Nessuna nuova giocata da salvare.');
+  state.playContest=String(contest);
+  state.playDate=date;
+  const ok=saveState();
+  render();
+  msg('msgGen', added?('Salvate '+added+' sestine giocate per il concorso '+contest+'. Ora sono registrate nella sezione Sestine giocate.'):'Nessuna nuova giocata da salvare.', !ok || added===0);
 }
 function combinations(arr,k){
   const out=[]; 
@@ -2037,9 +2110,11 @@ function saveManualHistoricalPlays(){
     added++;
   });
   state.latestCheckedContest=String(contest);
-  saveState();
+  state.playContest=String(contest);
+  state.playDate=date || draw?.date || '';
+  const ok=saveState();
   render();
-  let out='Giocate storiche salvate: '+added+'.';
+  let out='Giocate storiche salvate e registrate: '+added+'.';
   if(draw){
     const positive=state.played.filter(p=>String(p.contest)===String(contest)).filter(p=>getHitsForPlay(p, draw).length>0).length;
     out += ' Estrazione presente: sì. Giocate con almeno 1 numero preso: '+positive+'.';
@@ -2780,8 +2855,8 @@ function render(){
 
   const pl=byId('playedList');
   pl.innerHTML=state.played.length?'':'<div class="muted">Nessuna giocata salvata.</div>';
-  state.played.slice(-PLAYED_LIST_LIMIT).reverse().forEach((p,shownIdx)=>{
-    const idx = state.played.length - 1 - shownIdx;
+  state.played.slice(0, PLAYED_LIST_LIMIT).forEach((p,shownIdx)=>{
+    const idx = shownIdx;
     ensurePlayExtras(p);
     const draw=getDrawByContest(p.contest);
     const outcome=getPlayOutcome(p, draw);
@@ -2918,9 +2993,15 @@ function bind(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setSmartMode(b.dataset.mode));
   document.querySelectorAll('[data-mode-pill]').forEach(b=>b.onclick=()=>setSmartMode(b.dataset.modePill));
   window.addEventListener('beforeunload', saveState);
+  window.addEventListener('pagehide', saveState);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveState(); });
+  ['playContest','playDate','manualContest','manualDate'].forEach(id=>{
+    const el=byId(id);
+    if(el) el.onchange=()=>{ state[id==='playContest'?'playContest':id==='playDate'?'playDate':'latestCheckedContest']=el.value; saveState(); };
+  });
 }
 loadState();
-document.addEventListener('DOMContentLoaded',()=>{ bind(); render(); prefillNext(); });
+document.addEventListener('DOMContentLoaded',()=>{ bind(); render(); if(!state.playContest) prefillNext(); });
 
 // ==========================
 // 🧠 SUPER LEARNING ENGINE DEFINITIVO
