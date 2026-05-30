@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v42 Save Sync Fix</title>
+  <title>Super6plus v42 Restore Safe</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -188,8 +188,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v42 Save Sync Fix</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v42: salvataggio rinforzato, giocate salvate subito, concorsi registrati in modo stabile e backup JSON per passare da Mac a smartphone.</p>
+  <h1>Super6plus v42 Restore Safe</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v42 Restore Safe: recupero backup JSON v25, salvataggio protetto, cloud anti-sovrascrittura e generazione alleggerita.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -623,7 +623,7 @@ const SMART_MODES = {
 function cleanupOldKeys(){
   try{
     const prefixes=['superenalotto_privato_','superenalotto_v'];
-    const keep=[KEY, ...LEGACY_KEYS];
+    const keep=[KEY, MIRROR_KEY, ...LEGACY_KEYS, 'super6plus_cloud_firebase_config_v43', 'super6plus_cloud_path_v43'];
     const del=[];
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
@@ -703,13 +703,24 @@ function saveState(){
     return false;
   }
 }
+function stateScore(obj){
+  if(!obj || typeof obj!=='object') return 0;
+  const draws = Array.isArray(obj.draws) ? obj.draws.length : 0;
+  const played = Array.isArray(obj.played) ? obj.played.length : 0;
+  const generated = Array.isArray(obj.generated) ? obj.generated.length : 0;
+  const archived = Array.isArray(obj.archivedHits) ? obj.archivedHits.length : 0;
+  return draws*1000 + played*50 + archived*30 + generated;
+}
 function pickLatestRaw(candidates){
-  let best=null, bestTime=0;
+  let best=null, bestRank=-1, bestTime=0;
   candidates.filter(Boolean).forEach(raw=>{
     try{
       const obj=JSON.parse(raw);
+      const rank=stateScore(obj);
       const t=Date.parse(obj.savedAt||obj.learning?.lastUpdate||'')||0;
-      if(!best || t>=bestTime){ best=raw; bestTime=t; }
+      if(!best || rank>bestRank || (rank===bestRank && t>=bestTime)){
+        best=raw; bestRank=rank; bestTime=t;
+      }
     }catch(e){}
   });
   return best;
@@ -868,12 +879,19 @@ function exportArchivedHitsCSV(){
   document.body.removeChild(a);
 }
 function importJson(text){
-  const data=JSON.parse(text);
+  let data;
+  try{ data=JSON.parse(text); }
+  catch(e){ msg('msgImport','Il file non è un JSON valido.',true); return; }
+  const importedScore = stateScore(data);
+  if(!Array.isArray(data.draws) || data.draws.length===0){
+    msg('msgImport','Backup letto, ma non contiene estrazioni. Import annullato per sicurezza.',true);
+    return;
+  }
   state=Object.assign(emptyState(), data);
   normalizeState();
-  saveState();
+  const ok=saveState();
   render();
-  msg('msgImport','Backup JSON importato e salvato su questo dispositivo.');
+  msg('msgImport','Backup JSON importato e salvato: '+state.draws.length+' estrazioni · '+state.played.length+' giocate · '+(state.archivedHits||[]).length+' archiviate.');
 }
 function nextContest(){ return String(state.draws.reduce((m,d)=>Math.max(m,Number(d.contest)||0),0)+1||1); }
 function prefillNext(){
@@ -1067,7 +1085,7 @@ async function generate(){
   if(btn){ btn.disabled=true; btn.textContent='Genero...'; }
   try{
     const f=buildAutoSettings();
-    f.pool = Math.min(+f.pool || 25000, 9000);
+    f.pool = Math.min(+f.pool || 25000, 5000);
     state.settings=f;
     msg('msgGen','Sto generando in modalità Turbo leggera. La pagina resta utilizzabile...',false);
     await new Promise(r=>setTimeout(r,0));
@@ -1086,7 +1104,7 @@ async function generate(){
     const seen=new Set();
     let tries=0;
     const wanted=Math.max(1, Math.min(50, f.results||8));
-    const targetPool=Math.min(12000, Math.max(3500, wanted * 360));
+    const targetPool=Math.min(6500, Math.max(1800, wanted * 220));
     const minScoreStrict = wanted <= 12 ? 148 : 143;
     const minScoreLoose = wanted <= 12 ? 132 : 126;
 
@@ -1113,7 +1131,7 @@ async function generate(){
 
     if(scoreboard.length < wanted){
       let rescue=0;
-      while(scoreboard.length < wanted && rescue < 3500){
+      while(scoreboard.length < wanted && rescue < 1800){
         if(rescue % 500 === 0) await new Promise(r=>setTimeout(r,0));
         const nums=randomCombo();
         const k=keyOf(nums);
@@ -3283,6 +3301,22 @@ async function cloudLoadApi(){
   CLOUD.api = { ...appMod, ...dbMod };
   return CLOUD.api;
 }
+function cloudStateLooksEmpty(st){
+  return !st || !Array.isArray(st.draws) || st.draws.length===0;
+}
+function cloudShouldApplyRemote(remoteState){
+  const localScore=stateScore(state);
+  const remoteScore=stateScore(remoteState);
+  if(remoteScore===0 && localScore>0){
+    cloudStatus('Cloud ignorato: contiene database vuoto, mentre questo dispositivo ha dati locali.', true);
+    return false;
+  }
+  if(remoteScore < localScore && localScore>0){
+    cloudStatus('Cloud ignorato: dati remoti più poveri dei dati locali. Usa "Invia questi dati al cloud" se vuoi aggiornare il cloud.', true);
+    return false;
+  }
+  return true;
+}
 async function cloudInit(cfg, path){
   const api = await cloudLoadApi();
   if(!CLOUD.app){ CLOUD.app = api.initializeApp(cfg); }
@@ -3296,12 +3330,14 @@ async function cloudInit(cfg, path){
     if(!data || !data.state) return;
     const remoteTime = Number(data.updatedAt || 0);
     if(remoteTime && remoteTime <= CLOUD.lastApplied) return;
+    if(!cloudShouldApplyRemote(data.state)) return;
     CLOUD.lastApplied = remoteTime || Date.now();
     CLOUD.pulling = true;
     try{
       state = Object.assign(emptyState(), data.state);
-      migrateStateForExtras();
+      normalizeState();
       localStorage.setItem(KEY, JSON.stringify(state));
+      localStorage.setItem(MIRROR_KEY, JSON.stringify(state));
       render();
       cloudInstallPanel();
       cloudStatus('Aggiornato dal cloud: '+new Date(CLOUD.lastApplied).toLocaleString('it-IT'));
@@ -3330,10 +3366,19 @@ async function cloudPushNow(force){
       if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return; }
       await cloudInit(cfg, cloudGetPath());
     }
+    if((!state.draws || state.draws.length===0) && !force){
+      cloudStatus('Invio cloud annullato: database locale vuoto.', true);
+      return;
+    }
+    if((!state.draws || state.draws.length===0) && force){
+      cloudStatus('Non invio al cloud un database vuoto. Prima importa il backup JSON.', true);
+      return;
+    }
     const api=await cloudLoadApi();
+    normalizeState();
     const updatedAt=Date.now();
     CLOUD.lastApplied=updatedAt;
-    await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v43', state });
+    await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v42-restore-safe', state });
     cloudStatus((force?'Dati inviati al cloud. ':'Salvataggio cloud automatico. ')+new Date(updatedAt).toLocaleString('it-IT'));
   }catch(e){ cloudStatus('Errore invio cloud: '+e.message,true); }
 }
@@ -3348,10 +3393,12 @@ async function cloudPullOnce(){
     const snap=await api.get(CLOUD.ref);
     const data=snap.val();
     if(!data || !data.state){ cloudStatus('Nel cloud non ci sono ancora dati.', true); return; }
+    if(!cloudShouldApplyRemote(data.state)) return;
     CLOUD.pulling=true;
     state=Object.assign(emptyState(), data.state);
-    migrateStateForExtras();
+    normalizeState();
     localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(MIRROR_KEY, JSON.stringify(state));
     render();
     cloudInstallPanel();
     CLOUD.pulling=false;
