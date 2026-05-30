@@ -2800,31 +2800,81 @@ function extractMoneyCandidates(chunk){
   }
   return out;
 }
-function extractPrizeRecordFromChunk(chunk, catKey){
-  const money=extractMoneyCandidates(chunk);
-  let single=0;
-  if(money.length){
-    single=money[money.length-1].val;
+function detectWinCategoryFromText(line){
+  const low=String(line||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(!low) return null;
+  if(/\bpunti\s*5\s*\+\s*1\b/.test(low) || /\b5\s*\+\s*1\b/.test(low) || /cinque\s*(piu|più|\+)\s*uno/.test(low)) return 'cinquePiuUno';
+  if(/\bpunti\s*6\b/.test(low) || /\b6\s*punti\b/.test(low) || /\bjackpot\b/.test(low) || /\bsei\b/.test(low)) return 'sei';
+  if(/\bpunti\s*5\b/.test(low) || /\bcinquina\b|\bcinquine\b/.test(low)) return 'cinquina';
+  if(/\bpunti\s*4\b/.test(low) || /\bquaterna\b|\bquaterne\b/.test(low)) return 'quaterna';
+  if(/\bpunti\s*3\b/.test(low) || /\bterno\b|\bterni\b/.test(low)) return 'terno';
+  if(/\bpunti\s*2\b/.test(low) || /\bambo\b|\bambi\b/.test(low)) return 'ambo';
+  return null;
+}
+function parseFlexibleNumberIT(raw){
+  let s=String(raw||'').trim().replace(/\s/g,'');
+  if(!s) return 0;
+  if(s.includes(',') && s.includes('.')){
+    const lastComma=s.lastIndexOf(',');
+    const lastDot=s.lastIndexOf('.');
+    if(lastComma>lastDot) s=s.replace(/\./g,'').replace(',', '.');
+    else s=s.replace(/,/g,'');
+  }else if(/^\d{1,3}(\.\d{3})+$/.test(s)){
+    s=s.replace(/\./g,'');
+  }else if(/^\d{1,3}(,\d{3})+$/.test(s)){
+    s=s.replace(/,/g,'');
+  }else if(s.includes(',')){
+    s=s.replace(',', '.');
   }
-  let countText=String(chunk||'');
+  const n=Number(s);
+  return Number.isFinite(n)?n:0;
+}
+function extractPrizeRecordFromChunk(chunk, catKey){
+  const src=String(chunk||'');
+  const money=extractMoneyCandidates(src);
+  let single=0;
+  if(money.length) single=money[money.length-1].val;
+  let countText=src;
   money.forEach(m=>{ countText=countText.replace(m.raw,' '); });
   countText=stripCategoryWords(countText, catKey);
-  const nums=(countText.match(/\d+/g)||[]).map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
-  let count=0;
-  if(nums.length) count=nums[0];
+  const countMatch=countText.match(/\d{1,3}(?:[\.\s]\d{3})+|\d+/);
+  const count=countMatch ? parseFlexibleNumberIT(countMatch[0]) : 0;
   return {count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
 }
+function parseWinsRowLine(line){
+  const cat=detectWinCategoryFromText(line);
+  if(!cat) return null;
+  const money=extractMoneyCandidates(line);
+  let single=money.length ? money[money.length-1].val : 0;
+  let cleaned=String(line||'');
+  money.forEach(m=>{ cleaned=cleaned.replace(m.raw,' '); });
+  cleaned=stripCategoryWords(cleaned, cat);
+  const countMatch=cleaned.match(/\d{1,3}(?:[\.\s]\d{3})+|\d+/);
+  const count=countMatch ? parseFlexibleNumberIT(countMatch[0]) : 0;
+  return {cat, count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+}
 function parseWinsText(text){
-  const aliases=getWinAliases();
   const lines=String(text||'').split(/\r?\n/).map(normalizeQuickText).filter(Boolean);
-  const joined=lines.join('\n');
   const result=emptyPrizes();
+
+  // Caso migliore: testo copiato o OCR in righe tabellari tipo:
+  // punti 5   10   € 14.650,92
+  // punti 3   16.145   € 27,88
+  lines.forEach(line=>{
+    const row=parseWinsRowLine(line);
+    if(row) result[row.cat]={count:row.count, single:row.single};
+  });
+
+  // Fallback: testo tutto mischiato su una sola riga.
+  const joined=lines.join('\n');
+  const aliases=getWinAliases();
   WIN_CATS.forEach(c=>{
+    if((result[c.key].count||0)>0 || (result[c.key].single||0)>0) return;
     let chunk='';
     const catAliases=aliases[c.key]||[];
     for(let i=0;i<lines.length;i++){
       const low=lines[i].toLowerCase();
-      if(catAliases.some(a=>low.includes(a))){
+      if(catAliases.some(a=>low.includes(a)) || detectWinCategoryFromText(lines[i])===c.key){
         chunk=[lines[i], lines[i+1]||'', lines[i+2]||''].join(' ');
         break;
       }
@@ -2834,12 +2884,10 @@ function parseWinsText(text){
       const found=catAliases.find(a=>lowJoined.includes(a));
       if(found){
         const pos=lowJoined.indexOf(found);
-        chunk=joined.slice(Math.max(0,pos-30), pos+180);
+        chunk=joined.slice(Math.max(0,pos-20), pos+120);
       }
     }
-    if(chunk){
-      result[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
-    }
+    if(chunk) result[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
   });
   return result;
 }
@@ -2900,13 +2948,13 @@ function renderWinsEditor(draw){
     +'<div class="draw-prize-title">Aggiorna vincite pubblicate da Sisal / AMS</div>'
     +'<div class="wins-quick-box">'
     +'<div class="small muted"><strong>Import veloce</strong>: incolla il testo copiato da Sisal/AMS oppure carica uno screenshot. L\'app compila i campi, poi tu controlli e salvi.</div>'
-    +'<textarea data-wins-text placeholder="Incolla qui il testo delle vincite Sisal/AMS. Esempio: Ambo 1234 vincite 12,50 €&#10;Terno 45 vincite 1.250,00 €"></textarea>'
+    +'<textarea data-wins-text placeholder="Incolla qui il testo delle vincite Sisal/AMS. Esempio: punti 5 10 € 14.650,92&#10;punti 4 417 € 360,17&#10;punti 3 16.145 € 27,88"></textarea>'
     +'<div class="wins-quick-actions">'
     +'<button class="btn-blue" data-parse-wins="'+draw.contest+'">Leggi testo e compila</button>'
     +'<input type="file" accept="image/*" data-wins-image style="max-width:260px">'
     +'<button class="btn-violet" data-ocr-wins="'+draw.contest+'">Leggi screenshot</button>'
     +'</div>'
-    +'<div class="wins-quick-status" data-wins-status>Consiglio: usa prima Incolla testo. Lo screenshot è più comodo, ma può sbagliare qualche cifra.</div>'
+    +'<div class="wins-quick-status" data-wins-status>Consiglio: se puoi, copia il testo della tabella. Lo screenshot funziona, ma va sempre controllato prima di salvare.</div>'
     +'</div>'
     +'<div class="wins-editor-grid">';
   WIN_CATS.forEach(c=>{
