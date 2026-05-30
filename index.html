@@ -2772,36 +2772,31 @@ function normalizeQuickText(s){
 }
 function getWinAliases(){
   return {
-    ambo:['ambo','ambi','punti 2','categoria ambo'],
-    terno:['terno','terni','punti 3','categoria terno'],
-    quaterna:['quaterna','quaterne','punti 4','categoria quaterna'],
-    cinquina:['cinquina','cinquine','punti 5','categoria cinquina'],
-    cinquePiuUno:['5+1','5 + 1','cinque+uno','cinque più uno','cinque piu uno','punti 5+1'],
-    sei:['punti 6','categoria 6','sei','6 punti','jackpot']
+    ambo:['Punti 2','Ambo','Ambi'],
+    terno:['Punti 3','Terno','Terni'],
+    quaterna:['Punti 4','Quaterna','Quaterne'],
+    cinquina:['Punti 5','Cinquina','Cinquine'],
+    cinquePiuUno:['Punti 5+1','Punti 5 + 1','5+1','5 + 1','Cinque più uno','Cinque piu uno'],
+    sei:['Punti 6','6 punti','Jackpot','Sei']
   };
 }
-function stripCategoryWords(s, catKey){
-  let out=String(s||'').toLowerCase();
-  const aliases=getWinAliases()[catKey]||[];
-  aliases.forEach(a=>{ out=out.replace(new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),' '); });
-  out=out.replace(/5\s*\+\s*1/g,' ');
-  out=out.replace(/\b(ambo|ambi|terno|terni|quaterna|quaterne|cinquina|cinquine|sei|punti|categoria|vincite|vincita|vincitori|numero|n|singola|importo|quota|premio|jackpot|euro|eur)\b/g,' ');
-  return out;
-}
 function parseFlexibleNumberIT(raw){
-  let s=String(raw||'').trim().replace(/\s/g,'');
+  let s=String(raw||'').trim();
   if(!s || s==='-') return 0;
-  s=s.replace(/€/g,'');
+  s=s.replace(/€/g,'').replace(/\s+/g,'');
+  if(!s || s==='-') return 0;
   if(s.includes(',') && s.includes('.')){
-    const lastComma=s.lastIndexOf(',');
-    const lastDot=s.lastIndexOf('.');
-    if(lastComma>lastDot) s=s.replace(/\./g,'').replace(',', '.');
+    // Formato italiano: 590.411,80
+    if(s.lastIndexOf(',') > s.lastIndexOf('.')) s=s.replace(/\./g,'').replace(',', '.');
     else s=s.replace(/,/g,'');
   }else if(/^\d{1,3}(\.\d{3})+$/.test(s)){
+    // Intero con punto migliaia: 301.436
     s=s.replace(/\./g,'');
   }else if(/^\d{1,3}(,\d{3})+$/.test(s)){
+    // Intero con virgola migliaia, raro
     s=s.replace(/,/g,'');
   }else if(s.includes(',')){
+    // Decimale italiano: 34,49
     s=s.replace(',', '.');
   }
   const n=Number(s);
@@ -2810,164 +2805,135 @@ function parseFlexibleNumberIT(raw){
 function detectWinCategoryFromText(line){
   const low=String(line||'').toLowerCase().replace(/\s+/g,' ').trim();
   if(!low) return null;
+  // Ordine importante: 5+1 prima di 5.
   if(/\bpunti\s*5\s*\+\s*1\b/.test(low) || /\b5\s*\+\s*1\b/.test(low) || /cinque\s*(piu|più|\+)\s*uno/.test(low)) return 'cinquePiuUno';
-  if(/\bpunti\s*6\b/.test(low) || /\b6\s*punti\b/.test(low) || /\bjackpot\b/.test(low) || /\bsei\b/.test(low)) return 'sei';
+  if(/\bpunti\s*6\b/.test(low) || /\b6\s*punti\b/.test(low) || /\bjackpot\b/.test(low) || /^sei\b/.test(low)) return 'sei';
   if(/\bpunti\s*5\b/.test(low) || /\bcinquina\b|\bcinquine\b/.test(low)) return 'cinquina';
   if(/\bpunti\s*4\b/.test(low) || /\bquaterna\b|\bquaterne\b/.test(low)) return 'quaterna';
   if(/\bpunti\s*3\b/.test(low) || /\bterno\b|\bterni\b/.test(low)) return 'terno';
   if(/\bpunti\s*2\b/.test(low) || /\bambo\b|\bambi\b/.test(low)) return 'ambo';
   return null;
 }
-function extractMoneyCandidates(chunk){
-  const src=String(chunk||'');
-  const out=[];
-  const euroRe=/(?:€\s*)?\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}|(?:€\s*)?\d+,\d{1,2}|€\s*\d{1,3}(?:[\.\s]\d{3})*|€\s*\d+/g;
-  let m;
-  while((m=euroRe.exec(src))){
-    const raw=m[0];
-    const val=parseMoneyInput(raw);
-    if(Number.isFinite(val)) out.push({raw,val,index:m.index});
-  }
-  return out;
+function categoryLabelRegex(){
+  return /(Punti\s*5\s*\+\s*1|Punti\s*[23456]\b|5\s*\+\s*1|Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine|Cinque\s*(?:piu|più)\s*uno|Jackpot|Sei)/i;
 }
-function extractPrizeRecordFromChunk(chunk, catKey){
-  const src=String(chunk||'');
-  const money=extractMoneyCandidates(src);
-  let single=0;
-  if(money.length) single=money[money.length-1].val;
-  let countText=src;
-  money.forEach(m=>{ countText=countText.replace(m.raw,' '); });
-  countText=stripCategoryWords(countText, catKey);
-  const countMatch=countText.match(/\d{1,3}(?:[\.\s]\d{3})+|\d+/);
-  const count=countMatch ? parseFlexibleNumberIT(countMatch[0]) : 0;
-  return {count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+function removeCategoryLabel(line){
+  return String(line||'').replace(categoryLabelRegex(),' ').trim();
+}
+function cleanWinValueTokens(s){
+  return String(s||'')
+    .replace(/€/g,' € ')
+    .replace(/[|;]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .split(' ')
+    .filter(t=>t && t!=='€');
+}
+function looksLikeCountToken(tok){
+  const t=String(tok||'').trim();
+  return /^\d+$/.test(t) || /^\d{1,3}(?:\.\d{3})+$/.test(t);
+}
+function looksLikeMoneyToken(tok){
+  const t=String(tok||'').trim();
+  return t==='-' || /^\d+(?:\.\d{3})*,\d{1,2}$/.test(t) || /^\d+,\d{1,2}$/.test(t);
 }
 function parseWinsRowLine(line){
   const cat=detectWinCategoryFromText(line);
   if(!cat) return null;
-  const money=extractMoneyCandidates(line);
-  let single=money.length ? money[money.length-1].val : 0;
-  let cleaned=String(line||'');
-  money.forEach(m=>{ cleaned=cleaned.replace(m.raw,' '); });
-  cleaned=stripCategoryWords(cleaned, cat);
-  const countMatch=cleaned.match(/\d{1,3}(?:[\.\s]\d{3})+|\d+/);
-  const count=countMatch ? parseFlexibleNumberIT(countMatch[0]) : 0;
-  return {cat, count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+  const after=removeCategoryLabel(line);
+  const tokens=cleanWinValueTokens(after);
+  let count=null;
+  let single=null;
+  for(const tok of tokens){
+    if(count===null && looksLikeCountToken(tok)){
+      count=parseFlexibleNumberIT(tok);
+      continue;
+    }
+    if(count!==null && single===null && looksLikeMoneyToken(tok)){
+      single=parseFlexibleNumberIT(tok);
+      break;
+    }
+  }
+  // Se manca il premio ma c'è il trattino in riga, vale zero.
+  if(single===null && /(^|\s)-(\s|$)/.test(after)) single=0;
+  if(count===null) count=0;
+  if(single===null) single=0;
+  return {cat, count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0), found:true};
 }
 function tokenToCategory(token){
-  const t=String(token||'').toLowerCase().replace(/\s+/g,' ').trim();
-  if(!t) return null;
-  if(/^punti\s*5\s*\+\s*1$/.test(t) || /^5\s*\+\s*1$/.test(t)) return 'cinquePiuUno';
-  if(/^punti\s*6$/.test(t) || /^6$/.test(t)) return 'sei';
-  if(/^punti\s*5$/.test(t) || /^cinquina$/.test(t) || /^cinquine$/.test(t)) return 'cinquina';
-  if(/^punti\s*4$/.test(t) || /^quaterna$/.test(t) || /^quaterne$/.test(t)) return 'quaterna';
-  if(/^punti\s*3$/.test(t) || /^terno$/.test(t) || /^terni$/.test(t)) return 'terno';
-  if(/^punti\s*2$/.test(t) || /^ambo$/.test(t) || /^ambi$/.test(t)) return 'ambo';
-  return null;
+  return detectWinCategoryFromText(token);
 }
 function tokenizeWinsText(text){
+  // Qui NON uso lo spazio come separatore di migliaia: nello screenshot/testo copiato lo spazio separa colonne.
   const src=String(text||'')
     .replace(/\u00a0/g,' ')
     .replace(/[–—]/g,'-')
-    .replace(/€/g,' € ')
-    .replace(/(Punti)\s*(5)\s*\+\s*(1)/gi,'\nPunti 5+1\n')
-    .replace(/(Punti)\s*([23456])\b/gi,'\nPunti $2\n')
-    .replace(/\b(Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine)\b/gi,'\n$1\n')
-    .replace(/\s+/g,' ')
-    .replace(/\s*\n\s*/g,'\n')
-    .trim();
+    .replace(/€/g,' € ');
+  const re=/Punti\s*5\s*\+\s*1|Punti\s*[23456]\b|5\s*\+\s*1|Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine|Cinque\s*(?:piu|più)\s*uno|Jackpot|Sei|-|\d+(?:\.\d{3})*,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+/gi;
   const out=[];
-  const re=/Punti\s*5\s*\+\s*1|Punti\s*[23456]\b|5\s*\+\s*1|Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine|-|\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:[\.\s]\d{3})+|\d+/gi;
   let m;
-  while((m=re.exec(src))){ out.push(m[0].trim()); }
+  while((m=re.exec(src))) out.push(m[0].trim());
   return out;
-}
-function isMoneyToken(tok){
-  const t=String(tok||'').trim();
-  if(t==='-') return true;
-  return /^\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}$/.test(t) || /^\d+,\d{1,2}$/.test(t);
-}
-function isCountToken(tok){
-  const t=String(tok||'').trim();
-  return /^\d{1,3}(?:[\.\s]\d{3})+$/.test(t) || /^\d+$/.test(t);
 }
 function parseWinsBySequentialTokens(text){
   const result=emptyPrizes();
+  const found={};
   const tokens=tokenizeWinsText(text);
   for(let i=0;i<tokens.length;i++){
     const cat=tokenToCategory(tokens[i]);
     if(!cat) continue;
-    let count=0, single=0, gotCount=false, gotSingle=false;
+    let count=null, single=null;
     for(let j=i+1;j<tokens.length;j++){
       if(tokenToCategory(tokens[j])) break;
       const tok=tokens[j];
-      if(!gotCount && isCountToken(tok)){
+      if(count===null && looksLikeCountToken(tok)){
         count=parseFlexibleNumberIT(tok);
-        gotCount=true;
         continue;
       }
-      if(gotCount && !gotSingle && isMoneyToken(tok)){
-        single = tok==='-' ? 0 : parseMoneyInput(tok);
-        gotSingle=true;
+      if(count!==null && single===null && looksLikeMoneyToken(tok)){
+        single=parseFlexibleNumberIT(tok);
         break;
       }
     }
-    if(gotCount || gotSingle) result[cat]={count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+    if(count!==null || single!==null){
+      result[cat]={count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+      found[cat]=true;
+    }
   }
-  return result;
+  return {result, found};
 }
-function mergePrizeResults(primary, secondary){
+function mergePrizeResults(primary, primaryFound, secondary, secondaryFound){
   const out=emptyPrizes();
+  const found={};
   WIN_CATS.forEach(c=>{
-    const a=primary?.[c.key]||{count:0,single:0};
-    const b=secondary?.[c.key]||{count:0,single:0};
-    out[c.key]={
-      count:(a.count||0) || (b.count||0),
-      single:(a.single||0) || (b.single||0)
-    };
+    if(primaryFound?.[c.key]){
+      out[c.key]=primary[c.key];
+      found[c.key]=true;
+    }else if(secondaryFound?.[c.key]){
+      out[c.key]=secondary[c.key];
+      found[c.key]=true;
+    }
   });
-  return out;
+  return {result:out, found};
 }
 function parseWinsText(text){
-  const result=emptyPrizes();
+  const rowResult=emptyPrizes();
+  const rowFound={};
   const lines=String(text||'').split(/\r?\n/).map(normalizeQuickText).filter(Boolean);
 
-  // Prima prova: righe complete, esempio: "Punti 4 392 496,00 €".
+  // Caso migliore: una riga per categoria.
   lines.forEach(line=>{
     const row=parseWinsRowLine(line);
-    if(row) result[row.cat]={count:row.count, single:row.single};
+    if(row){
+      rowResult[row.cat]={count:row.count, single:row.single};
+      rowFound[row.cat]=true;
+    }
   });
 
-  // Seconda prova: testo copiato da tabella dove categoria, vincitori e importo finiscono su righe separate.
-  // Esempio: Punti 4 / 392 / 496,00 €.
+  // Caso tabella copiata male: categoria, vincitori e premio separati in più righe/spazi.
   const seq=parseWinsBySequentialTokens(text);
-  let merged=mergePrizeResults(result, seq);
-
-  // Fallback: testo molto sporco tutto mischiato.
-  const joined=lines.join('\n');
-  const aliases=getWinAliases();
-  WIN_CATS.forEach(c=>{
-    if((merged[c.key].count||0)>0 || (merged[c.key].single||0)>0) return;
-    let chunk='';
-    const catAliases=aliases[c.key]||[];
-    for(let i=0;i<lines.length;i++){
-      const low=lines[i].toLowerCase();
-      if(catAliases.some(a=>low.includes(a)) || detectWinCategoryFromText(lines[i])===c.key){
-        chunk=[lines[i], lines[i+1]||'', lines[i+2]||''].join(' ');
-        break;
-      }
-    }
-    if(!chunk){
-      const lowJoined=joined.toLowerCase();
-      const found=catAliases.find(a=>lowJoined.includes(a));
-      if(found){
-        const pos=lowJoined.indexOf(found);
-        chunk=joined.slice(Math.max(0,pos-20), pos+120);
-      }
-    }
-    if(chunk) merged[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
-  });
-  return merged;
+  const merged=mergePrizeResults(rowResult, rowFound, seq.result, seq.found);
+  return merged.result;
 }
 function fillWinsEditorFromPrizes(contest, prizes){
   const box=byId('wins-editor-'+contest);
