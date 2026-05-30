@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v43 Vincite Smart</title>
+  <title>Super6plus v44 Vincite Smart</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,8 +199,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v43 Vincite Smart</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v43: cloud compatto a tendina, import veloce vincite da testo AMS/Sisal e lettura screenshot OCR.</p>
+  <h1>Super6plus v44 Vincite Smart</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v44: cloud compatto a tendina e import veloce vincite solo da testo copiato AMS/Sisal. Screenshot OCR rimosso per evitare errori di lettura.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -2788,32 +2788,10 @@ function stripCategoryWords(s, catKey){
   out=out.replace(/\b(ambo|ambi|terno|terni|quaterna|quaterne|cinquina|cinquine|sei|punti|categoria|vincite|vincita|vincitori|numero|n|singola|importo|quota|premio|jackpot|euro|eur)\b/g,' ');
   return out;
 }
-function extractMoneyCandidates(chunk){
-  const src=String(chunk||'');
-  const out=[];
-  const euroRe=/(?:€\s*)?\d{1,3}(?:[\.\s]\d{3})*,\d{2}|(?:€\s*)?\d+,\d{2}|€\s*\d{1,3}(?:[\.\s]\d{3})*|€\s*\d+/g;
-  let m;
-  while((m=euroRe.exec(src))){
-    const raw=m[0];
-    const val=parseMoneyInput(raw);
-    if(Number.isFinite(val)) out.push({raw,val,index:m.index});
-  }
-  return out;
-}
-function detectWinCategoryFromText(line){
-  const low=String(line||'').toLowerCase().replace(/\s+/g,' ').trim();
-  if(!low) return null;
-  if(/\bpunti\s*5\s*\+\s*1\b/.test(low) || /\b5\s*\+\s*1\b/.test(low) || /cinque\s*(piu|più|\+)\s*uno/.test(low)) return 'cinquePiuUno';
-  if(/\bpunti\s*6\b/.test(low) || /\b6\s*punti\b/.test(low) || /\bjackpot\b/.test(low) || /\bsei\b/.test(low)) return 'sei';
-  if(/\bpunti\s*5\b/.test(low) || /\bcinquina\b|\bcinquine\b/.test(low)) return 'cinquina';
-  if(/\bpunti\s*4\b/.test(low) || /\bquaterna\b|\bquaterne\b/.test(low)) return 'quaterna';
-  if(/\bpunti\s*3\b/.test(low) || /\bterno\b|\bterni\b/.test(low)) return 'terno';
-  if(/\bpunti\s*2\b/.test(low) || /\bambo\b|\bambi\b/.test(low)) return 'ambo';
-  return null;
-}
 function parseFlexibleNumberIT(raw){
   let s=String(raw||'').trim().replace(/\s/g,'');
-  if(!s) return 0;
+  if(!s || s==='-') return 0;
+  s=s.replace(/€/g,'');
   if(s.includes(',') && s.includes('.')){
     const lastComma=s.lastIndexOf(',');
     const lastDot=s.lastIndexOf('.');
@@ -2828,6 +2806,29 @@ function parseFlexibleNumberIT(raw){
   }
   const n=Number(s);
   return Number.isFinite(n)?n:0;
+}
+function detectWinCategoryFromText(line){
+  const low=String(line||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(!low) return null;
+  if(/\bpunti\s*5\s*\+\s*1\b/.test(low) || /\b5\s*\+\s*1\b/.test(low) || /cinque\s*(piu|più|\+)\s*uno/.test(low)) return 'cinquePiuUno';
+  if(/\bpunti\s*6\b/.test(low) || /\b6\s*punti\b/.test(low) || /\bjackpot\b/.test(low) || /\bsei\b/.test(low)) return 'sei';
+  if(/\bpunti\s*5\b/.test(low) || /\bcinquina\b|\bcinquine\b/.test(low)) return 'cinquina';
+  if(/\bpunti\s*4\b/.test(low) || /\bquaterna\b|\bquaterne\b/.test(low)) return 'quaterna';
+  if(/\bpunti\s*3\b/.test(low) || /\bterno\b|\bterni\b/.test(low)) return 'terno';
+  if(/\bpunti\s*2\b/.test(low) || /\bambo\b|\bambi\b/.test(low)) return 'ambo';
+  return null;
+}
+function extractMoneyCandidates(chunk){
+  const src=String(chunk||'');
+  const out=[];
+  const euroRe=/(?:€\s*)?\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}|(?:€\s*)?\d+,\d{1,2}|€\s*\d{1,3}(?:[\.\s]\d{3})*|€\s*\d+/g;
+  let m;
+  while((m=euroRe.exec(src))){
+    const raw=m[0];
+    const val=parseMoneyInput(raw);
+    if(Number.isFinite(val)) out.push({raw,val,index:m.index});
+  }
+  return out;
 }
 function extractPrizeRecordFromChunk(chunk, catKey){
   const src=String(chunk||'');
@@ -2853,23 +2854,100 @@ function parseWinsRowLine(line){
   const count=countMatch ? parseFlexibleNumberIT(countMatch[0]) : 0;
   return {cat, count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
 }
-function parseWinsText(text){
-  const lines=String(text||'').split(/\r?\n/).map(normalizeQuickText).filter(Boolean);
+function tokenToCategory(token){
+  const t=String(token||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(!t) return null;
+  if(/^punti\s*5\s*\+\s*1$/.test(t) || /^5\s*\+\s*1$/.test(t)) return 'cinquePiuUno';
+  if(/^punti\s*6$/.test(t) || /^6$/.test(t)) return 'sei';
+  if(/^punti\s*5$/.test(t) || /^cinquina$/.test(t) || /^cinquine$/.test(t)) return 'cinquina';
+  if(/^punti\s*4$/.test(t) || /^quaterna$/.test(t) || /^quaterne$/.test(t)) return 'quaterna';
+  if(/^punti\s*3$/.test(t) || /^terno$/.test(t) || /^terni$/.test(t)) return 'terno';
+  if(/^punti\s*2$/.test(t) || /^ambo$/.test(t) || /^ambi$/.test(t)) return 'ambo';
+  return null;
+}
+function tokenizeWinsText(text){
+  const src=String(text||'')
+    .replace(/\u00a0/g,' ')
+    .replace(/[–—]/g,'-')
+    .replace(/€/g,' € ')
+    .replace(/(Punti)\s*(5)\s*\+\s*(1)/gi,'\nPunti 5+1\n')
+    .replace(/(Punti)\s*([23456])\b/gi,'\nPunti $2\n')
+    .replace(/\b(Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine)\b/gi,'\n$1\n')
+    .replace(/\s+/g,' ')
+    .replace(/\s*\n\s*/g,'\n')
+    .trim();
+  const out=[];
+  const re=/Punti\s*5\s*\+\s*1|Punti\s*[23456]\b|5\s*\+\s*1|Ambo|Ambi|Terno|Terni|Quaterna|Quaterne|Cinquina|Cinquine|-|\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:[\.\s]\d{3})+|\d+/gi;
+  let m;
+  while((m=re.exec(src))){ out.push(m[0].trim()); }
+  return out;
+}
+function isMoneyToken(tok){
+  const t=String(tok||'').trim();
+  if(t==='-') return true;
+  return /^\d{1,3}(?:[\.\s]\d{3})*,\d{1,2}$/.test(t) || /^\d+,\d{1,2}$/.test(t);
+}
+function isCountToken(tok){
+  const t=String(tok||'').trim();
+  return /^\d{1,3}(?:[\.\s]\d{3})+$/.test(t) || /^\d+$/.test(t);
+}
+function parseWinsBySequentialTokens(text){
   const result=emptyPrizes();
+  const tokens=tokenizeWinsText(text);
+  for(let i=0;i<tokens.length;i++){
+    const cat=tokenToCategory(tokens[i]);
+    if(!cat) continue;
+    let count=0, single=0, gotCount=false, gotSingle=false;
+    for(let j=i+1;j<tokens.length;j++){
+      if(tokenToCategory(tokens[j])) break;
+      const tok=tokens[j];
+      if(!gotCount && isCountToken(tok)){
+        count=parseFlexibleNumberIT(tok);
+        gotCount=true;
+        continue;
+      }
+      if(gotCount && !gotSingle && isMoneyToken(tok)){
+        single = tok==='-' ? 0 : parseMoneyInput(tok);
+        gotSingle=true;
+        break;
+      }
+    }
+    if(gotCount || gotSingle) result[cat]={count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+  }
+  return result;
+}
+function mergePrizeResults(primary, secondary){
+  const out=emptyPrizes();
+  WIN_CATS.forEach(c=>{
+    const a=primary?.[c.key]||{count:0,single:0};
+    const b=secondary?.[c.key]||{count:0,single:0};
+    out[c.key]={
+      count:(a.count||0) || (b.count||0),
+      single:(a.single||0) || (b.single||0)
+    };
+  });
+  return out;
+}
+function parseWinsText(text){
+  const result=emptyPrizes();
+  const lines=String(text||'').split(/\r?\n/).map(normalizeQuickText).filter(Boolean);
 
-  // Caso migliore: testo copiato o OCR in righe tabellari tipo:
-  // punti 5   10   € 14.650,92
-  // punti 3   16.145   € 27,88
+  // Prima prova: righe complete, esempio: "Punti 4 392 496,00 €".
   lines.forEach(line=>{
     const row=parseWinsRowLine(line);
     if(row) result[row.cat]={count:row.count, single:row.single};
   });
 
-  // Fallback: testo tutto mischiato su una sola riga.
+  // Seconda prova: testo copiato da tabella dove categoria, vincitori e importo finiscono su righe separate.
+  // Esempio: Punti 4 / 392 / 496,00 €.
+  const seq=parseWinsBySequentialTokens(text);
+  let merged=mergePrizeResults(result, seq);
+
+  // Fallback: testo molto sporco tutto mischiato.
   const joined=lines.join('\n');
   const aliases=getWinAliases();
   WIN_CATS.forEach(c=>{
-    if((result[c.key].count||0)>0 || (result[c.key].single||0)>0) return;
+    if((merged[c.key].count||0)>0 || (merged[c.key].single||0)>0) return;
     let chunk='';
     const catAliases=aliases[c.key]||[];
     for(let i=0;i<lines.length;i++){
@@ -2887,9 +2965,9 @@ function parseWinsText(text){
         chunk=joined.slice(Math.max(0,pos-20), pos+120);
       }
     }
-    if(chunk) result[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
+    if(chunk) merged[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
   });
-  return result;
+  return merged;
 }
 function fillWinsEditorFromPrizes(contest, prizes){
   const box=byId('wins-editor-'+contest);
@@ -2910,36 +2988,7 @@ function quickParseWins(contest){
   const parsed=parseWinsText(txt);
   fillWinsEditorFromPrizes(contest, parsed);
   const found=WIN_CATS.filter(c=>(parsed[c.key].count||0)>0 || (parsed[c.key].single||0)>0).map(c=>c.label);
-  if(status) status.textContent=found.length ? ('Dati letti: '+found.join(', ')+'. Controlla e premi Salva vincite.') : 'Non ho trovato dati chiari. Prova a incollare più testo o usa lo screenshot.';
-}
-function loadTesseractScript(){
-  return new Promise((resolve,reject)=>{
-    if(window.Tesseract) return resolve(window.Tesseract);
-    const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload=()=>resolve(window.Tesseract);
-    s.onerror=()=>reject(new Error('Impossibile caricare OCR. Controlla la connessione.'));
-    document.head.appendChild(s);
-  });
-}
-async function ocrWinsImage(contest){
-  const box=byId('wins-editor-'+contest);
-  if(!box) return;
-  const file=box.querySelector('[data-wins-image]')?.files?.[0];
-  const status=box.querySelector('[data-wins-status]');
-  if(!file){ if(status) status.textContent='Scegli prima uno screenshot.'; return; }
-  try{
-    if(status) status.textContent='OCR in corso. Attendi...';
-    const T=await loadTesseractScript();
-    const res=await T.recognize(file,'ita+eng');
-    const text=res?.data?.text||'';
-    const ta=box.querySelector('[data-wins-text]');
-    if(ta) ta.value=text;
-    quickParseWins(contest);
-    if(status) status.textContent='Screenshot letto. Controlla i campi compilati e premi Salva vincite.';
-  }catch(e){
-    if(status) status.textContent='Errore OCR: '+(e.message||e);
-  }
+  if(status) status.textContent=found.length ? ('Dati letti: '+found.join(', ')+'. Controlla e premi Salva vincite.') : 'Non ho trovato dati chiari. Copia la tabella completa da AMS/Sisal e incollala qui.';
 }
 
 function renderWinsEditor(draw){
@@ -2947,14 +2996,12 @@ function renderWinsEditor(draw){
   let html='<div class="wins-editor" id="wins-editor-'+draw.contest+'">'
     +'<div class="draw-prize-title">Aggiorna vincite pubblicate da Sisal / AMS</div>'
     +'<div class="wins-quick-box">'
-    +'<div class="small muted"><strong>Import veloce</strong>: incolla il testo copiato da Sisal/AMS oppure carica uno screenshot. L\'app compila i campi, poi tu controlli e salvi.</div>'
-    +'<textarea data-wins-text placeholder="Incolla qui il testo delle vincite Sisal/AMS. Esempio: punti 5 10 € 14.650,92&#10;punti 4 417 € 360,17&#10;punti 3 16.145 € 27,88"></textarea>'
+    +'<div class="small muted"><strong>Import veloce</strong>: incolla il testo copiato da AMS/Sisal. Lo screenshot OCR è stato rimosso perché leggeva male Quaterna, Cinquina, 5+1 e Sestina.</div>'
+    +'<textarea data-wins-text placeholder="Incolla qui il testo delle vincite AMS/Sisal. Esempio:&#10;Punti 6 0 -&#10;Punti 5+1 1 590.411,80 €&#10;Punti 5 4 47.687,11 €&#10;Punti 4 392 496,00 €&#10;Punti 3 16.960 34,49 €&#10;Punti 2 301.436 6,02 €"></textarea>'
     +'<div class="wins-quick-actions">'
-    +'<button class="btn-blue" data-parse-wins="'+draw.contest+'">Leggi testo e compila</button>'
-    +'<input type="file" accept="image/*" data-wins-image style="max-width:260px">'
-    +'<button class="btn-violet" data-ocr-wins="'+draw.contest+'">Leggi screenshot</button>'
+    +'<button class="btn-blue" data-parse-wins="'+draw.contest+'">Interpreta testo e compila</button>'
     +'</div>'
-    +'<div class="wins-quick-status" data-wins-status>Consiglio: se puoi, copia il testo della tabella. Lo screenshot funziona, ma va sempre controllato prima di salvare.</div>'
+    +'<div class="wins-quick-status" data-wins-status>Incolla il testo della tabella. Il parser legge le etichette Punti 2, 3, 4, 5, 5+1 e 6 senza mischiare le categorie.</div>'
     +'</div>'
     +'<div class="wins-editor-grid">';
   WIN_CATS.forEach(c=>{
@@ -3148,7 +3195,6 @@ function render(){
   dl.querySelectorAll('[data-save-wins]').forEach(b=>b.onclick=()=>saveWinsForDraw(b.dataset.saveWins));
   dl.querySelectorAll('[data-close-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.closeWins));
   dl.querySelectorAll('[data-parse-wins]').forEach(b=>b.onclick=()=>quickParseWins(b.dataset.parseWins));
-  dl.querySelectorAll('[data-ocr-wins]').forEach(b=>b.onclick=()=>ocrWinsImage(b.dataset.ocrWins));
 
   // Performance: calendario e pattern si aggiornano solo quando premi i rispettivi pulsanti.
   renderSmartPicker();
