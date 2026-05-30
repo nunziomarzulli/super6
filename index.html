@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v42 Restore Safe</title>
+  <title>Super6plus v43 Vincite Smart</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -136,6 +136,17 @@
     .wins-editor-line label{display:block;font-size:12px;color:#a9b9d8;margin-bottom:6px;font-weight:700}
     .wins-editor-line .row{gap:6px}
     .wins-editor-line input{padding:8px;border-radius:9px}
+    .wins-quick-box{margin:10px 0;background:#071733;border:1px solid #29446f;border-radius:12px;padding:10px}
+    .wins-quick-box textarea{min-height:110px;resize:vertical}
+    .wins-quick-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .wins-quick-actions button{flex:0 0 auto;padding:8px 10px;border-radius:10px;font-size:12px}
+    .wins-quick-status{font-size:12px;margin-top:8px;color:#a9b9d8}
+    details.cloud-compact{margin-top:16px;border-color:#67c0ff}
+    details.cloud-compact summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    details.cloud-compact summary::-webkit-details-marker{display:none}
+    .cloud-summary-title{font-size:22px;font-weight:800}
+    .cloud-summary-status{font-size:13px;color:#9df0a4;font-weight:800}
+    .cloud-body{margin-top:14px}
     @media (max-width:900px){
       .draw-prize-grid,.wins-editor-grid{grid-template-columns:1fr}
     }
@@ -188,8 +199,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v42 Restore Safe</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v42 Restore Safe: recupero backup JSON v25, salvataggio protetto, cloud anti-sovrascrittura e generazione alleggerita.</p>
+  <h1>Super6plus v43 Vincite Smart</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v43: cloud compatto a tendina, import veloce vincite da testo AMS/Sisal e lettura screenshot OCR.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -2751,10 +2762,152 @@ function togglePrizeDetails(contest){
   if(search) search.value=drawArchiveSearchTerm;
   render();
 }
+
+function normalizeQuickText(s){
+  return String(s||'')
+    .replace(/\u00a0/g,' ')
+    .replace(/[–—]/g,'-')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function getWinAliases(){
+  return {
+    ambo:['ambo','ambi','punti 2','categoria ambo'],
+    terno:['terno','terni','punti 3','categoria terno'],
+    quaterna:['quaterna','quaterne','punti 4','categoria quaterna'],
+    cinquina:['cinquina','cinquine','punti 5','categoria cinquina'],
+    cinquePiuUno:['5+1','5 + 1','cinque+uno','cinque più uno','cinque piu uno','punti 5+1'],
+    sei:['punti 6','categoria 6','sei','6 punti','jackpot']
+  };
+}
+function stripCategoryWords(s, catKey){
+  let out=String(s||'').toLowerCase();
+  const aliases=getWinAliases()[catKey]||[];
+  aliases.forEach(a=>{ out=out.replace(new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),' '); });
+  out=out.replace(/5\s*\+\s*1/g,' ');
+  out=out.replace(/\b(ambo|ambi|terno|terni|quaterna|quaterne|cinquina|cinquine|sei|punti|categoria|vincite|vincita|vincitori|numero|n|singola|importo|quota|premio|jackpot|euro|eur)\b/g,' ');
+  return out;
+}
+function extractMoneyCandidates(chunk){
+  const src=String(chunk||'');
+  const out=[];
+  const euroRe=/(?:€\s*)?\d{1,3}(?:[\.\s]\d{3})*,\d{2}|(?:€\s*)?\d+,\d{2}|€\s*\d{1,3}(?:[\.\s]\d{3})*|€\s*\d+/g;
+  let m;
+  while((m=euroRe.exec(src))){
+    const raw=m[0];
+    const val=parseMoneyInput(raw);
+    if(Number.isFinite(val)) out.push({raw,val,index:m.index});
+  }
+  return out;
+}
+function extractPrizeRecordFromChunk(chunk, catKey){
+  const money=extractMoneyCandidates(chunk);
+  let single=0;
+  if(money.length){
+    single=money[money.length-1].val;
+  }
+  let countText=String(chunk||'');
+  money.forEach(m=>{ countText=countText.replace(m.raw,' '); });
+  countText=stripCategoryWords(countText, catKey);
+  const nums=(countText.match(/\d+/g)||[]).map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
+  let count=0;
+  if(nums.length) count=nums[0];
+  return {count:Math.max(0,Math.round(count||0)), single:Math.max(0,single||0)};
+}
+function parseWinsText(text){
+  const aliases=getWinAliases();
+  const lines=String(text||'').split(/\r?\n/).map(normalizeQuickText).filter(Boolean);
+  const joined=lines.join('\n');
+  const result=emptyPrizes();
+  WIN_CATS.forEach(c=>{
+    let chunk='';
+    const catAliases=aliases[c.key]||[];
+    for(let i=0;i<lines.length;i++){
+      const low=lines[i].toLowerCase();
+      if(catAliases.some(a=>low.includes(a))){
+        chunk=[lines[i], lines[i+1]||'', lines[i+2]||''].join(' ');
+        break;
+      }
+    }
+    if(!chunk){
+      const lowJoined=joined.toLowerCase();
+      const found=catAliases.find(a=>lowJoined.includes(a));
+      if(found){
+        const pos=lowJoined.indexOf(found);
+        chunk=joined.slice(Math.max(0,pos-30), pos+180);
+      }
+    }
+    if(chunk){
+      result[c.key]=extractPrizeRecordFromChunk(chunk, c.key);
+    }
+  });
+  return result;
+}
+function fillWinsEditorFromPrizes(contest, prizes){
+  const box=byId('wins-editor-'+contest);
+  if(!box) return;
+  WIN_CATS.forEach(c=>{
+    const rec=prizes[c.key]||{count:0,single:0};
+    const countInput=box.querySelector('[data-win-count="'+c.key+'"]');
+    const singleInput=box.querySelector('[data-win-single="'+c.key+'"]');
+    if(countInput) countInput.value=rec.count||'';
+    if(singleInput) singleInput.value=rec.single?String(rec.single).replace('.',','):'';
+  });
+}
+function quickParseWins(contest){
+  const box=byId('wins-editor-'+contest);
+  if(!box) return;
+  const txt=box.querySelector('[data-wins-text]')?.value||'';
+  const status=box.querySelector('[data-wins-status]');
+  const parsed=parseWinsText(txt);
+  fillWinsEditorFromPrizes(contest, parsed);
+  const found=WIN_CATS.filter(c=>(parsed[c.key].count||0)>0 || (parsed[c.key].single||0)>0).map(c=>c.label);
+  if(status) status.textContent=found.length ? ('Dati letti: '+found.join(', ')+'. Controlla e premi Salva vincite.') : 'Non ho trovato dati chiari. Prova a incollare più testo o usa lo screenshot.';
+}
+function loadTesseractScript(){
+  return new Promise((resolve,reject)=>{
+    if(window.Tesseract) return resolve(window.Tesseract);
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=()=>resolve(window.Tesseract);
+    s.onerror=()=>reject(new Error('Impossibile caricare OCR. Controlla la connessione.'));
+    document.head.appendChild(s);
+  });
+}
+async function ocrWinsImage(contest){
+  const box=byId('wins-editor-'+contest);
+  if(!box) return;
+  const file=box.querySelector('[data-wins-image]')?.files?.[0];
+  const status=box.querySelector('[data-wins-status]');
+  if(!file){ if(status) status.textContent='Scegli prima uno screenshot.'; return; }
+  try{
+    if(status) status.textContent='OCR in corso. Attendi...';
+    const T=await loadTesseractScript();
+    const res=await T.recognize(file,'ita+eng');
+    const text=res?.data?.text||'';
+    const ta=box.querySelector('[data-wins-text]');
+    if(ta) ta.value=text;
+    quickParseWins(contest);
+    if(status) status.textContent='Screenshot letto. Controlla i campi compilati e premi Salva vincite.';
+  }catch(e){
+    if(status) status.textContent='Errore OCR: '+(e.message||e);
+  }
+}
+
 function renderWinsEditor(draw){
   ensureDrawPrizes(draw);
   let html='<div class="wins-editor" id="wins-editor-'+draw.contest+'">'
-    +'<div class="draw-prize-title">Aggiorna vincite pubblicate da Sisal</div>'
+    +'<div class="draw-prize-title">Aggiorna vincite pubblicate da Sisal / AMS</div>'
+    +'<div class="wins-quick-box">'
+    +'<div class="small muted"><strong>Import veloce</strong>: incolla il testo copiato da Sisal/AMS oppure carica uno screenshot. L\'app compila i campi, poi tu controlli e salvi.</div>'
+    +'<textarea data-wins-text placeholder="Incolla qui il testo delle vincite Sisal/AMS. Esempio: Ambo 1234 vincite 12,50 €&#10;Terno 45 vincite 1.250,00 €"></textarea>'
+    +'<div class="wins-quick-actions">'
+    +'<button class="btn-blue" data-parse-wins="'+draw.contest+'">Leggi testo e compila</button>'
+    +'<input type="file" accept="image/*" data-wins-image style="max-width:260px">'
+    +'<button class="btn-violet" data-ocr-wins="'+draw.contest+'">Leggi screenshot</button>'
+    +'</div>'
+    +'<div class="wins-quick-status" data-wins-status>Consiglio: usa prima Incolla testo. Lo screenshot è più comodo, ma può sbagliare qualche cifra.</div>'
+    +'</div>'
     +'<div class="wins-editor-grid">';
   WIN_CATS.forEach(c=>{
     const rec=draw.prizes[c.key]||{count:0,single:0};
@@ -2946,6 +3099,8 @@ function render(){
   dl.querySelectorAll('[data-open-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.openWins));
   dl.querySelectorAll('[data-save-wins]').forEach(b=>b.onclick=()=>saveWinsForDraw(b.dataset.saveWins));
   dl.querySelectorAll('[data-close-wins]').forEach(b=>b.onclick=()=>openWinsEditor(b.dataset.closeWins));
+  dl.querySelectorAll('[data-parse-wins]').forEach(b=>b.onclick=()=>quickParseWins(b.dataset.parseWins));
+  dl.querySelectorAll('[data-ocr-wins]').forEach(b=>b.onclick=()=>ocrWinsImage(b.dataset.ocrWins));
 
   // Performance: calendario e pattern si aggiornano solo quando premi i rispettivi pulsanti.
   renderSmartPicker();
@@ -3242,6 +3397,8 @@ let CLOUD = {
 function cloudStatus(text, isErr=false){
   const el=document.getElementById('cloudStatus');
   if(el){ el.textContent=text||''; el.className='msg '+(isErr?'err':'ok'); }
+  const sum=document.getElementById('cloudSummaryStatus');
+  if(sum){ sum.textContent=isErr?'Attenzione ⚠️':(CLOUD.ready?'Attivo ✅':'Configurato'); sum.style.color=isErr?'#ff9f9f':'#9df0a4'; }
 }
 function cloudDefaultPath(){ return 'super6plus/live/main'; }
 function cloudGetConfig(){
@@ -3259,31 +3416,40 @@ function cloudSetConfigFromText(txt){
 }
 function cloudInstallPanel(){
   if(document.getElementById('cloudSyncPanel')) return;
+  const cfgPresent = !!cloudGetConfig();
   const html = `
-  <div class="card" id="cloudSyncPanel" style="margin-top:16px;border-color:#67c0ff">
-    <h2>Cloud Sync Mac / iPhone</h2>
-    <p class="muted small">Per aggiornare Mac e iPhone nello stesso momento serve Firebase Realtime Database. Incolla qui la configurazione Firebase una sola volta su ogni dispositivo.</p>
-    <div class="grid g2" style="margin-top:12px">
+  <details class="card cloud-compact" id="cloudSyncPanel">
+    <summary>
       <div>
-        <div class="muted small">Firebase config JSON</div>
-        <textarea id="cloudFirebaseConfig" rows="7" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"https://...firebaseio.com","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+        <div class="cloud-summary-title">Cloud Sync Mac / iPhone</div>
+        <div class="small muted">Clicca per aprire configurazione e comandi.</div>
       </div>
-      <div>
-        <div class="muted small">Percorso dati condiviso</div>
-        <input id="cloudDataPath" value="${cloudGetPath()}">
-        <div class="row" style="margin-top:10px">
-          <button class="btn-blue" id="btnCloudActivate">Attiva Cloud Sync</button>
-          <button class="btn-green" id="btnCloudUpload">Invia questi dati al cloud</button>
+      <div class="cloud-summary-status" id="cloudSummaryStatus">${cfgPresent?'Attivo ✅':'Da configurare'}</div>
+    </summary>
+    <div class="cloud-body">
+      <p class="muted small">Per aggiornare Mac e iPhone nello stesso momento serve Firebase Realtime Database. Incolla qui la configurazione Firebase una sola volta su ogni dispositivo.</p>
+      <div class="grid g2" style="margin-top:12px">
+        <div>
+          <div class="muted small">Firebase config JSON</div>
+          <textarea id="cloudFirebaseConfig" rows="7" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"https://...firebaseio.com","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
         </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn-grey" id="btnCloudDownload">Scarica dati dal cloud</button>
-          <button class="btn-red" id="btnCloudForget">Disattiva su questo dispositivo</button>
+        <div>
+          <div class="muted small">Percorso dati condiviso</div>
+          <input id="cloudDataPath" value="${cloudGetPath()}">
+          <div class="row" style="margin-top:10px">
+            <button class="btn-blue" id="btnCloudActivate">Attiva Cloud Sync</button>
+            <button class="btn-green" id="btnCloudUpload">Invia questi dati al cloud</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn-grey" id="btnCloudDownload">Scarica dati dal cloud</button>
+            <button class="btn-red" id="btnCloudForget">Disattiva su questo dispositivo</button>
+          </div>
+          <div class="msg" id="cloudStatus">${cfgPresent?'Cloud configurato.':'Cloud Sync non ancora attivo.'}</div>
+          <div class="small muted" style="margin-top:8px">Quando è attivo, ogni salvataggio viene inviato online e gli altri dispositivi aperti sulla stessa pagina si aggiornano da soli.</div>
         </div>
-        <div class="msg" id="cloudStatus">Cloud Sync non ancora attivo.</div>
-        <div class="small muted" style="margin-top:8px">Quando è attivo, ogni salvataggio viene inviato online e gli altri dispositivi aperti sulla stessa pagina si aggiornano da soli.</div>
       </div>
     </div>
-  </div>`;
+  </details>`;
   const stats = document.querySelector('.grid.g3');
   if(stats) stats.insertAdjacentHTML('afterend', html);
   const old=cloudGetConfig();
