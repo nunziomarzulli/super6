@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v44 Vincite Smart</title>
+  <title>Super6plus v45 Ranking Sestine</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,8 +199,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v44 Vincite Smart</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v44: cloud compatto a tendina e import veloce vincite solo da testo copiato AMS/Sisal. Screenshot OCR rimosso per evitare errori di lettura.</p>
+  <h1>Super6plus v45 Ranking Sestine</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v45: motore di abbinamento numeri. Le sestine vengono generate, valutate come gruppo e ordinate con ranking su ambi, terni, numeri caldi, mancanti del mese e struttura.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -3654,6 +3654,244 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     catch(e){ cloudStatus('Cloud non attivo: '+e.message,true); }
   }
 });
+
+
+/* =========================================================
+   SUPER6PLUS v45 - MOTORE ABBINAMENTO NUMERI
+   Override finale: genera molte sestine, le valuta come gruppo,
+   premia ambi/terni/cluster e sceglie solo le migliori.
+   ========================================================= */
+function V45_pairKey(a,b){ return Math.min(a,b)+'-'+Math.max(a,b); }
+function V45_numRankContext(){
+  const ctx=aiMultiPeriodContext();
+  const missingSet=new Set(getMonthMissingNumbers());
+  const latest=(state.draws[0] && state.draws[0].numbers) ? state.draws[0].numbers : [];
+  const prev=(state.draws[1] && state.draws[1].numbers) ? state.draws[1].numbers : [];
+  const direction=zoneDirectionProfile(9,18);
+  const ranks=[];
+  for(let n=1;n<=90;n++){
+    let s=1;
+    s += (ctx.numScore[n]||0)*8;
+    if(missingSet.has(n)) s += 2.2;
+    if(latest.some(x=>Math.abs(x-n)<=2)) s += 1.6;
+    if(prev.some(x=>Math.abs(x-n)<=2)) s += 0.9;
+    s += Math.max(0, (direction[zoneIndex3x3(n)]||0))*1.4;
+    ranks.push({n,score:Math.max(0.15,s)});
+  }
+  ranks.sort((a,b)=>b.score-a.score);
+  return {ctx,missingSet,latest,prev,direction,ranks,hot:ranks.slice(0,24).map(x=>x.n)};
+}
+function V45_weightedPick(pool, used){
+  const available=pool.filter(x=>!used.has(x.n));
+  if(!available.length) return null;
+  const total=available.reduce((a,x)=>a+x.score,0);
+  let r=Math.random()*total;
+  for(const x of available){ r-=x.score; if(r<=0) return x.n; }
+  return available[available.length-1].n;
+}
+function V45_weightedCombo(profile){
+  const used=new Set();
+  const nums=[];
+  const pool=profile.ranks;
+  while(nums.length<6){
+    const n=V45_weightedPick(pool, used);
+    if(!n) break;
+    used.add(n); nums.push(n);
+  }
+  while(nums.length<6){ const n=randomInt90(); if(!used.has(n)){used.add(n); nums.push(n);} }
+  return sortNums(nums);
+}
+function V45_structuralPass(nums, f, missingSet){
+  const sum=nums.reduce((a,b)=>a+b,0);
+  if(sum<100 || sum>285) return false;
+  if(!parityOk(nums)) return false;
+  if(countSameDec(nums)>3) return false;
+  if(maxConsec(nums)>2) return false;
+  if(maxSameEnd(nums)>2) return false;
+  if(diffDecs(nums)<4) return false;
+  const miss=nums.filter(n=>missingSet.has(n)).length;
+  if(missingSet.size && (miss<1 || miss>2)) return false;
+  return true;
+}
+function V45_pairStats(nums, ctx){
+  let pairWeighted=0, strongPairs=0, veryStrongPairs=0;
+  const s=sortNums(nums);
+  for(let i=0;i<s.length;i++){
+    for(let j=i+1;j<s.length;j++){
+      const k=V45_pairKey(s[i],s[j]);
+      const p30=(ctx.pairs30.get(k)||0), p90=(ctx.pairs90.get(k)||0), p180=(ctx.pairs180.get(k)||0), pall=(ctx.pairsAll.get(k)||0);
+      const w=aiPairWeightedValue(s[i],s[j],ctx);
+      pairWeighted += w;
+      if(p30>=1 || p90>=2 || p180>=3 || pall>=5) strongPairs++;
+      if(p30>=2 || p90>=3 || p180>=5) veryStrongPairs++;
+    }
+  }
+  return {pairWeighted,strongPairs,veryStrongPairs};
+}
+function V45_trioStats(nums, ctx){
+  let trioWeighted=0, strongTrios=0;
+  comboKeysFromNums(nums,3).forEach(k=>{
+    const v=aiHigherWeightedValue(k,3,ctx);
+    trioWeighted += v;
+    if((ctx.trios30.get(k)||0)>=1 || (ctx.trios90.get(k)||0)>=2 || (ctx.trios180.get(k)||0)>=3) strongTrios++;
+  });
+  return {trioWeighted,strongTrios};
+}
+function scoreSestina(nums, baseMeta, profile, f){
+  const ctx=profile.ctx;
+  const base=baseMeta || {score:0, penalty:0, dynCompatScore:0, periodScore:0, calendarScore:0};
+  const pair=V45_pairStats(nums, ctx);
+  const trio=V45_trioStats(nums, ctx);
+  const sum=nums.reduce((a,b)=>a+b,0);
+  const even=nums.filter(n=>n%2===0).length;
+  const missCount=nums.filter(n=>profile.missingSet.has(n)).length;
+  const heatAvg=nums.reduce((a,n)=>a+(ctx.numScore[n]||0),0)/6;
+  const hotCount=nums.filter(n=>profile.hot.includes(n)).length;
+  const nearLatest=nearHitsToReference(nums, profile.latest, [1,2]);
+  const zones=coveredZonesCount(nums);
+  let score=0;
+  score += (base.score||0)*0.58;
+  score += (base.dynCompatScore||0)*0.55;
+  score += (base.periodScore||0)*1.35;
+  score += (base.calendarScore||0)*0.14;
+  score += heatAvg*18;
+  score += Math.min(38, pair.pairWeighted*520);
+  score += pair.strongPairs*8;
+  score += Math.min(18, pair.veryStrongPairs*6);
+  score += Math.min(35, trio.trioWeighted*950);
+  score += trio.strongTrios*14;
+  score += hotCount*4.5;
+  score += nearLatest*3.5;
+  score += zones*4;
+  score += (sum>=125 && sum<=245) ? 16 : (sum>=105 && sum<=270 ? 6 : -18);
+  score += ([2,3,4].includes(even)) ? 12 : -20;
+  score += (missCount>=1 && missCount<=2) ? 13 : -24;
+  score += countSameDec(nums)<=2 ? 8 : -7;
+  score += diffDecs(nums)>=5 ? 6 : 0;
+  if(pair.strongPairs===0) score -= 18;
+  if(pair.strongPairs>4) score -= (pair.strongPairs-4)*10;
+  if(trio.strongTrios>2) score -= (trio.strongTrios-2)*14;
+  if(maxConsec(nums)>2) score -= 25;
+  if(maxSameEnd(nums)>2) score -= 18;
+  const exactKey=keyOf(nums);
+  if((ctx.sixesAll||new Map()).has(exactKey)) score -= 300;
+  const quality = score>=205 ? 'Premium' : (score>=180 ? 'Forte' : (score>=158 ? 'Discreta' : 'Debole'));
+  return {
+    ...base,
+    score:Math.round(score*100)/100,
+    finalScore:Math.round(score*100)/100,
+    v45Quality:quality,
+    hotCount,
+    strongPairs:pair.strongPairs,
+    strongTrios:trio.strongTrios,
+    missCount,
+    heatAvg:Math.round(heatAvg*100)/100,
+    label:'V45 '+quality,
+    note:'Ranking v45: numeri valutati come gruppo con ambi, terni, calore recente, mancanti del mese e struttura della sestina.'
+  };
+}
+function V45_pickFinal(scoreboard, wanted){
+  const sorted=[...scoreboard].sort((a,b)=>(b.meta.finalScore||b.meta.score||0)-(a.meta.finalScore||a.meta.score||0));
+  const out=[], seen=new Set();
+  for(const x of sorted){
+    if(out.length>=wanted) break;
+    const k=keyOf(x.numbers);
+    if(seen.has(k)) continue;
+    if(out.some(p=>comboOverlapCount(p.numbers,x.numbers)>=4)) continue;
+    seen.add(k); out.push(x);
+  }
+  for(const x of sorted){
+    if(out.length>=wanted) break;
+    const k=keyOf(x.numbers);
+    if(seen.has(k)) continue;
+    seen.add(k); out.push(x);
+  }
+  return out.slice(0,wanted);
+}
+
+let V45_GENERATING_NOW=false;
+generate = async function(){
+  if(V45_GENERATING_NOW) return msg('msgGen','Generazione già in corso. Attendi qualche secondo.',true);
+  if(!state.draws.length) return msg('msgGen','Prima importa lo storico.',true);
+  V45_GENERATING_NOW=true;
+  const btn=byId('btnGenerate');
+  if(btn){ btn.disabled=true; btn.textContent='Genero v45...'; }
+  try{
+    ensureLearningState?.();
+    AI_normalize?.();
+    const f=buildAutoSettings();
+    f.results=Math.max(1,Math.min(50,parseInt(byId('f_results').value,10)||8));
+    state.settings=f;
+    const wanted=f.results;
+    const contest=(byId('playContest').value.trim() || state.playContest || nextContest());
+    const profile=V45_numRankContext();
+    const pairMap=recurringPairs(18);
+    const recentProfile=recentZoneProfile(f.zoneRecent||18);
+    const direction=zoneDirectionProfile(9,18);
+    const latestDraw=profile.latest;
+    const errorProfile=personalErrorProfile();
+    const learned=(f.shiftLearn==='ON') ? learnedShiftDeltas(errorProfile).slice(0,10) : [];
+    const extracted=new Set((state.draws||[]).map(d=>keyOf(d.numbers)));
+    const played=new Set((state.played||[]).map(p=>p.contest+'|'+keyOf(p.numbers)));
+    const seen=new Set();
+    const scoreboard=[];
+    const targetPool=Math.min(50000, Math.max(12000, wanted*1400));
+    msg('msgGen','Motore v45: genero '+targetPool+' candidate e tengo solo le sestine con abbinamento migliore...',false);
+    for(let i=0;i<targetPool;i++){
+      if(i%1000===0){ msg('msgGen','Motore v45: candidate '+i+' / '+targetPool+' · valide '+scoreboard.length,false); await new Promise(r=>setTimeout(r,0)); }
+      const nums=(Math.random()<0.72) ? V45_weightedCombo(profile) : randomCombo();
+      const k=keyOf(nums);
+      if(seen.has(k) || extracted.has(k) || played.has(contest+'|'+k)) continue;
+      seen.add(k);
+      if(!V45_structuralPass(nums,f,profile.missingSet)) continue;
+      const base=evaluateCombo(nums,f,pairMap,profile.missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true,periodCtx:profile.ctx});
+      const meta=scoreSestina(nums,base,profile,f);
+      if(meta.finalScore>=150){
+        scoreboard.push({numbers:nums,meta:{...meta,variant:'v45',source:'V45 ranking'}});
+      }
+    }
+    if(scoreboard.length<wanted){
+      let rescue=0;
+      while(scoreboard.length<wanted && rescue<6000){
+        const nums=V45_weightedCombo(profile);
+        const k=keyOf(nums);
+        if(seen.has(k) || extracted.has(k) || played.has(contest+'|'+k)){ rescue++; continue; }
+        seen.add(k);
+        const base=evaluateCombo(nums,f,pairMap,profile.missingSet,recentProfile,direction,latestDraw,errorProfile,learned,{allowImperfect:true,periodCtx:profile.ctx});
+        const meta=scoreSestina(nums,base,profile,f);
+        scoreboard.push({numbers:nums,meta:{...meta,variant:'v45-rescue',source:'V45 rescue'}});
+        rescue++;
+      }
+    }
+    const finalLines=V45_pickFinal(scoreboard,wanted);
+    state.generated=finalLines.map(g=>{ const ex=buildAutoExtras(g.numbers); return {...g,jolly:ex.jolly,superstar:ex.superstar}; });
+    state.absoluteReport={
+      title:'Motore v45 abbinamento numeri',
+      generated:state.generated.length,
+      candidates:scoreboard.length,
+      targetPool,
+      mode:f.autoModeUsed||'auto',
+      notes:[
+        'Le sestine non vengono più solo filtrate: vengono classificate con punteggio finale.',
+        'Il punteggio premia ambi e terni ricorrenti, numeri caldi, mancanti del mese e distribuzione per zone.',
+        'Le righe troppo simili tra loro vengono scartate per evitare doppioni mascherati.'
+      ]
+    };
+    state.playContest=contest;
+    state.playDate=byId('playDate').value || state.playDate || '';
+    saveState();
+    render();
+    const premium=state.generated.filter(x=>x.meta?.v45Quality==='Premium').length;
+    const forti=state.generated.filter(x=>x.meta?.v45Quality==='Forte').length;
+    msg('msgGen','Generate '+state.generated.length+' sestine v45. Premium: '+premium+' · Forti: '+forti+' · candidate valide: '+scoreboard.length+'.',!state.generated.length);
+  }catch(e){
+    console.error(e);
+    msg('msgGen','Errore motore v45: '+(e.message||e),true);
+  }finally{
+    V45_GENERATING_NOW=false;
+    if(btn){ btn.disabled=false; btn.textContent='Genera sestine'; }
+  }
+};
 
 </script>
 <!-- Firebase live sync riattivabile in v43 Cloud Sync con Firebase Realtime Database. -->
