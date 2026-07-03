@@ -3435,10 +3435,9 @@ evaluateCombo = function(nums, ...rest){
 
 
 /* =========================================================
-   SUPER6PLUS v43 CLOUD SYNC - Firebase Realtime Database
-   Funziona su GitHub Pages / file HTML statico.
-   I dati restano anche in locale, ma se attivi Firebase
-   Mac e iPhone si aggiornano in tempo reale.
+   SUPER6PLUS v46 CLOUD SYNC + FIREBASE AUTH
+   Realtime Database su GitHub Pages con accesso Google.
+   Lettura pubblica, scrittura protetta dalle regole Firebase.
    ========================================================= */
 const CLOUD_CFG_KEY = 'super6plus_cloud_firebase_config_v43';
 const CLOUD_PATH_KEY = 'super6plus_cloud_path_v43';
@@ -3447,18 +3446,37 @@ let CLOUD = {
   app:null,
   db:null,
   ref:null,
+  auth:null,
+  provider:null,
+  user:null,
   ready:false,
   pulling:false,
   pushTimer:null,
   lastApplied:0,
-  api:null
+  api:null,
+  authUnsub:null
 };
 
 function cloudStatus(text, isErr=false){
   const el=document.getElementById('cloudStatus');
   if(el){ el.textContent=text||''; el.className='msg '+(isErr?'err':'ok'); }
   const sum=document.getElementById('cloudSummaryStatus');
-  if(sum){ sum.textContent=isErr?'Attenzione ⚠️':(CLOUD.ready?'Attivo ✅':'Configurato'); sum.style.color=isErr?'#ff9f9f':'#9df0a4'; }
+  if(sum){
+    if(isErr){ sum.textContent='Attenzione ⚠️'; sum.style.color='#ff9f9f'; }
+    else if(CLOUD.ready){ sum.textContent='Attivo ✅'; sum.style.color='#9df0a4'; }
+    else { sum.textContent='Configurato'; sum.style.color='#9df0a4'; }
+  }
+}
+function cloudAuthStatus(){
+  const el=document.getElementById('cloudAuthStatus');
+  if(!el) return;
+  if(CLOUD.user){
+    el.innerHTML='Accesso Google: <strong>'+((CLOUD.user.email)||'utente')+'</strong><br>UID: <code style="color:#9df0a4">'+CLOUD.user.uid+'</code>';
+    el.className='small ok';
+  }else{
+    el.textContent='Accesso Google: non effettuato. Prima accedi, poi invia dati al cloud.';
+    el.className='small err';
+  }
 }
 function cloudDefaultPath(){ return 'super6plus/live/main'; }
 function cloudGetConfig(){
@@ -3475,19 +3493,19 @@ function cloudSetConfigFromText(txt){
   return cfg;
 }
 function cloudInstallPanel(){
-  if(document.getElementById('cloudSyncPanel')) return;
+  if(document.getElementById('cloudSyncPanel')){ cloudAuthStatus(); return; }
   const cfgPresent = !!cloudGetConfig();
   const html = `
   <details class="card cloud-compact" id="cloudSyncPanel">
     <summary>
       <div>
         <div class="cloud-summary-title">Cloud Sync Mac / iPhone</div>
-        <div class="small muted">Clicca per aprire configurazione e comandi.</div>
+        <div class="small muted">Clicca per aprire configurazione, login e comandi.</div>
       </div>
       <div class="cloud-summary-status" id="cloudSummaryStatus">${cfgPresent?'Attivo ✅':'Da configurare'}</div>
     </summary>
     <div class="cloud-body">
-      <p class="muted small">Per aggiornare Mac e iPhone nello stesso momento serve Firebase Realtime Database. Incolla qui la configurazione Firebase una sola volta su ogni dispositivo.</p>
+      <p class="muted small">Per aggiornare Mac e iPhone nello stesso momento serve Firebase Realtime Database. La lettura resta pubblica; la scrittura deve essere consentita solo al tuo UID nelle regole Firebase.</p>
       <div class="grid g2" style="margin-top:12px">
         <div>
           <div class="muted small">Firebase config JSON</div>
@@ -3498,14 +3516,19 @@ function cloudInstallPanel(){
           <input id="cloudDataPath" value="${cloudGetPath()}">
           <div class="row" style="margin-top:10px">
             <button class="btn-blue" id="btnCloudActivate">Attiva Cloud Sync</button>
-            <button class="btn-green" id="btnCloudUpload">Invia questi dati al cloud</button>
+            <button class="btn-violet" id="btnCloudLogin">Accedi con Google</button>
           </div>
           <div class="row" style="margin-top:10px">
+            <button class="btn-green" id="btnCloudUpload">Invia questi dati al cloud</button>
             <button class="btn-grey" id="btnCloudDownload">Scarica dati dal cloud</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn-grey" id="btnCloudLogout">Esci da Google</button>
             <button class="btn-red" id="btnCloudForget">Disattiva su questo dispositivo</button>
           </div>
+          <div id="cloudAuthStatus" class="small err" style="margin-top:10px">Accesso Google: non effettuato.</div>
           <div class="msg" id="cloudStatus">${cfgPresent?'Cloud configurato.':'Cloud Sync non ancora attivo.'}</div>
-          <div class="small muted" style="margin-top:8px">Quando è attivo, ogni salvataggio viene inviato online e gli altri dispositivi aperti sulla stessa pagina si aggiornano da soli.</div>
+          <div class="small muted" style="margin-top:8px">Prima premi Accedi con Google. Dopo il primo accesso copia il tuo UID qui sopra e usalo nelle regole del Realtime Database.</div>
         </div>
       </div>
     </div>
@@ -3516,16 +3539,19 @@ function cloudInstallPanel(){
   if(old){ byId('cloudFirebaseConfig').value=JSON.stringify(old,null,2); }
   byId('cloudDataPath').value=cloudGetPath();
   byId('btnCloudActivate').onclick=cloudActivateFromPanel;
+  byId('btnCloudLogin').onclick=cloudLogin;
+  byId('btnCloudLogout').onclick=cloudLogout;
   byId('btnCloudUpload').onclick=()=>cloudPushNow(true);
   byId('btnCloudDownload').onclick=cloudPullOnce;
   byId('btnCloudForget').onclick=cloudForget;
+  cloudAuthStatus();
 }
 async function cloudLoadApi(){
   if(CLOUD.api) return CLOUD.api;
-const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
-const authMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-CLOUD.api = { ...appMod, ...dbMod, ...authMod };
+  const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+  const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
+  const authMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+  CLOUD.api = { ...appMod, ...dbMod, ...authMod };
   return CLOUD.api;
 }
 function cloudStateLooksEmpty(st){
@@ -3547,14 +3573,22 @@ function cloudShouldApplyRemote(remoteState){
 async function cloudInit(cfg, path){
   const api = await cloudLoadApi();
   if(!CLOUD.app){ CLOUD.app = api.initializeApp(cfg); }
-
-CLOUD.auth = api.getAuth(CLOUD.app);
-CLOUD.provider = new api.GoogleAuthProvider();
-
-CLOUD.db = api.getDatabase(CLOUD.app);
-CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
+  CLOUD.auth = api.getAuth(CLOUD.app);
+  CLOUD.provider = new api.GoogleAuthProvider();
+  CLOUD.provider.setCustomParameters({ prompt:'select_account' });
+  if(!CLOUD.authUnsub){
+    CLOUD.authUnsub = api.onAuthStateChanged(CLOUD.auth, user=>{
+      CLOUD.user = user || null;
+      cloudAuthStatus();
+      if(user){ cloudStatus('Accesso Google effettuato: '+(user.email||user.uid)); }
+    });
+  }
+  try{ await api.getRedirectResult(CLOUD.auth); }catch(e){ cloudStatus('Errore ritorno login Google: '+e.message, true); }
+  CLOUD.db = api.getDatabase(CLOUD.app);
+  CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
   CLOUD.ready = true;
   CLOUD.enabled = true;
+  cloudAuthStatus();
   cloudStatus('Cloud Sync attivo. In attesa dati live...');
   api.onValue(CLOUD.ref, snap=>{
     const data=snap.val();
@@ -3576,13 +3610,72 @@ CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
     CLOUD.pulling = false;
   }, err=>cloudStatus('Errore Firebase: '+err.message,true));
 }
+async function cloudEnsureReady(){
+  if(CLOUD.ready && CLOUD.ref) return true;
+  const cfg=cloudGetConfig();
+  if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return false; }
+  await cloudInit(cfg, cloudGetPath());
+  return true;
+}
+async function cloudLogin(){
+  try{
+    const ok = await cloudEnsureReady();
+    if(!ok) return null;
+    const api=await cloudLoadApi();
+    if(CLOUD.auth.currentUser){
+      CLOUD.user=CLOUD.auth.currentUser;
+      cloudAuthStatus();
+      cloudStatus('Sei già autenticato: '+(CLOUD.user.email||CLOUD.user.uid));
+      return CLOUD.user;
+    }
+    cloudStatus('Apro login Google...');
+    try{
+      const res = await api.signInWithPopup(CLOUD.auth, CLOUD.provider);
+      CLOUD.user = res.user;
+      cloudAuthStatus();
+      cloudStatus('Accesso Google riuscito. UID: '+CLOUD.user.uid);
+      return CLOUD.user;
+    }catch(e){
+      if(e && (e.code==='auth/popup-blocked' || e.code==='auth/cancelled-popup-request')){
+        cloudStatus('Popup bloccato. Uso redirect Google...', true);
+        await api.signInWithRedirect(CLOUD.auth, CLOUD.provider);
+        return null;
+      }
+      throw e;
+    }
+  }catch(e){ cloudStatus('Errore login Google: '+e.message,true); return null; }
+}
+async function cloudLogout(){
+  try{
+    const ok = await cloudEnsureReady();
+    if(!ok) return;
+    const api=await cloudLoadApi();
+    await api.signOut(CLOUD.auth);
+    CLOUD.user=null;
+    cloudAuthStatus();
+    cloudStatus('Logout Google eseguito.');
+  }catch(e){ cloudStatus('Errore logout Google: '+e.message,true); }
+}
+async function cloudRequireUser(force){
+  if(CLOUD.auth && CLOUD.auth.currentUser){
+    CLOUD.user=CLOUD.auth.currentUser;
+    cloudAuthStatus();
+    return CLOUD.user;
+  }
+  if(!force){
+    cloudStatus('Salvataggio cloud automatico bloccato: devi prima accedere con Google.', true);
+    return null;
+  }
+  cloudStatus('Devi accedere con Google prima di inviare dati al cloud.', true);
+  return await cloudLogin();
+}
 async function cloudActivateFromPanel(){
   try{
     const cfg=cloudSetConfigFromText(byId('cloudFirebaseConfig').value);
     const path=(byId('cloudDataPath').value||cloudDefaultPath()).trim();
     localStorage.setItem(CLOUD_PATH_KEY,path);
     await cloudInit(cfg,path);
-    await cloudPushNow(true);
+    cloudStatus('Cloud Sync attivato. Ora premi Accedi con Google, poi Invia questi dati al cloud.');
   }catch(e){ cloudStatus(e.message,true); }
 }
 function cloudSchedulePush(){
@@ -3592,11 +3685,8 @@ function cloudSchedulePush(){
 }
 async function cloudPushNow(force){
   try{
-    if(!CLOUD.ready){
-      const cfg=cloudGetConfig();
-      if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return; }
-      await cloudInit(cfg, cloudGetPath());
-    }
+    const okReady = await cloudEnsureReady();
+    if(!okReady) return;
     if((!state.draws || state.draws.length===0) && !force){
       cloudStatus('Invio cloud annullato: database locale vuoto.', true);
       return;
@@ -3605,25 +3695,20 @@ async function cloudPushNow(force){
       cloudStatus('Non invio al cloud un database vuoto. Prima importa il backup JSON.', true);
       return;
     }
+    const user = await cloudRequireUser(force);
+    if(!user) return;
     const api=await cloudLoadApi();
     normalizeState();
     const updatedAt=Date.now();
     CLOUD.lastApplied=updatedAt;
-    if(!CLOUD.auth.currentUser){
-  cloudStatus('Accesso Google richiesto per inviare dati al cloud.', true);
-  await api.signInWithRedirect(CLOUD.auth, CLOUD.provider);
-}
-    await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v42-restore-safe', state });
+    await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v46-auth', ownerUid:user.uid, ownerEmail:user.email||'', state });
     cloudStatus((force?'Dati inviati al cloud. ':'Salvataggio cloud automatico. ')+new Date(updatedAt).toLocaleString('it-IT'));
   }catch(e){ cloudStatus('Errore invio cloud: '+e.message,true); }
 }
 async function cloudPullOnce(){
   try{
-    if(!CLOUD.ready){
-      const cfg=cloudGetConfig();
-      if(!cfg){ cloudStatus('Prima incolla la config Firebase e premi Attiva Cloud Sync.', true); return; }
-      await cloudInit(cfg, cloudGetPath());
-    }
+    const okReady = await cloudEnsureReady();
+    if(!okReady) return;
     const api=await cloudLoadApi();
     const snap=await api.get(CLOUD.ref);
     const data=snap.val();
@@ -3663,6 +3748,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     catch(e){ cloudStatus('Cloud non attivo: '+e.message,true); }
   }
 });
+
 
 
 /* =========================================================
