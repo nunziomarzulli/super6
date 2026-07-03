@@ -3687,6 +3687,7 @@ async function cloudPushNow(force){
   try{
     const okReady = await cloudEnsureReady();
     if(!okReady) return;
+
     if((!state.draws || state.draws.length===0) && !force){
       cloudStatus('Invio cloud annullato: database locale vuoto.', true);
       return;
@@ -3695,7 +3696,7 @@ async function cloudPushNow(force){
       cloudStatus('Non invio al cloud un database vuoto. Prima importa il backup JSON.', true);
       return;
     }
-    const user = await cloudRequireUser(force);
+    const user = await cloudRequireUser(false);
     if(!user) return;
     const api=await cloudLoadApi();
     normalizeState();
