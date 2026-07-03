@@ -3522,9 +3522,10 @@ function cloudInstallPanel(){
 }
 async function cloudLoadApi(){
   if(CLOUD.api) return CLOUD.api;
-  const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-  const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
-  CLOUD.api = { ...appMod, ...dbMod };
+const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
+const authMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+CLOUD.api = { ...appMod, ...dbMod, ...authMod };
   return CLOUD.api;
 }
 function cloudStateLooksEmpty(st){
@@ -3546,8 +3547,12 @@ function cloudShouldApplyRemote(remoteState){
 async function cloudInit(cfg, path){
   const api = await cloudLoadApi();
   if(!CLOUD.app){ CLOUD.app = api.initializeApp(cfg); }
-  CLOUD.db = api.getDatabase(CLOUD.app);
-  CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
+
+CLOUD.auth = api.getAuth(CLOUD.app);
+CLOUD.provider = new api.GoogleAuthProvider();
+
+CLOUD.db = api.getDatabase(CLOUD.app);
+CLOUD.ref = api.ref(CLOUD.db, path || cloudGetPath());
   CLOUD.ready = true;
   CLOUD.enabled = true;
   cloudStatus('Cloud Sync attivo. In attesa dati live...');
@@ -3604,6 +3609,10 @@ async function cloudPushNow(force){
     normalizeState();
     const updatedAt=Date.now();
     CLOUD.lastApplied=updatedAt;
+    if(!CLOUD.auth.currentUser){
+  cloudStatus('Accesso Google richiesto per inviare dati al cloud.', true);
+  await api.signInWithPopup(CLOUD.auth, CLOUD.provider);
+}
     await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v42-restore-safe', state });
     cloudStatus((force?'Dati inviati al cloud. ':'Salvataggio cloud automatico. ')+new Date(updatedAt).toLocaleString('it-IT'));
   }catch(e){ cloudStatus('Errore invio cloud: '+e.message,true); }
