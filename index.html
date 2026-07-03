@@ -3611,7 +3611,7 @@ async function cloudPushNow(force){
     CLOUD.lastApplied=updatedAt;
     if(!CLOUD.auth.currentUser){
   cloudStatus('Accesso Google richiesto per inviare dati al cloud.', true);
-  await api.signInWithPopup(CLOUD.auth, CLOUD.provider);
+  await api.signInWithRedirect(CLOUD.auth, CLOUD.provider);
 }
     await api.set(CLOUD.ref, { updatedAt, source:'super6plus-v42-restore-safe', state });
     cloudStatus((force?'Dati inviati al cloud. ':'Salvataggio cloud automatico. ')+new Date(updatedAt).toLocaleString('it-IT'));
