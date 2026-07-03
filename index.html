@@ -3657,15 +3657,32 @@ async function cloudLogout(){
   }catch(e){ cloudStatus('Errore logout Google: '+e.message,true); }
 }
 async function cloudRequireUser(force){
+  const api = await cloudLoadApi();
+
   if(CLOUD.auth && CLOUD.auth.currentUser){
-    CLOUD.user=CLOUD.auth.currentUser;
+    CLOUD.user = CLOUD.auth.currentUser;
     cloudAuthStatus();
     return CLOUD.user;
   }
+
+  await new Promise(resolve => {
+    const unsub = api.onAuthStateChanged(CLOUD.auth, user => {
+      CLOUD.user = user || null;
+      cloudAuthStatus();
+      unsub();
+      resolve();
+    });
+  });
+
+  if(CLOUD.user){
+    return CLOUD.user;
+  }
+
   if(!force){
     cloudStatus('Salvataggio cloud automatico bloccato: devi prima accedere con Google.', true);
     return null;
   }
+
   cloudStatus('Devi accedere con Google prima di inviare dati al cloud.', true);
   return await cloudLogin();
 }
