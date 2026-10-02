@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v46 — Ranking + Walk-Forward</title>
+  <title>Super6plus v47 — Autopilot</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,8 +199,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v46 — Ranking + Walk-Forward</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v46: mantiene il motore di ranking v45, ma aggiunge un laboratorio walk-forward fuori campione. Le euristiche non vengono considerate "vantaggio" finché non superano una baseline casuale su dati che il modello non ha visto.</p>
+  <h1>Super6plus v47 — Autopilot</h1>
+  <p class="muted">Super6plus analizza automaticamente lo storico, verifica internamente i modelli e produce direttamente le sestine finali. Nessun parametro statistico da configurare e nessun test da eseguire manualmente.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -254,59 +254,49 @@
   
   <div class="card" style="margin-top:16px">
     <h2>Sestine pronte da giocare</h2>
-    <div class="grid g2">
-      <div class="grid" style="gap:10px">
-        <div class="row">
-          <div>
-            <div class="muted small">Sestine finali da giocare</div>
-            <select id="f_results">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8" selected>8</option>
-              <option value="10">10</option>
-              <option value="12">12</option>
-              <option value="15">15</option>
-              <option value="20">20</option>
-              <option value="25">25</option>
-              <option value="30">30</option>
-              <option value="40">40</option>
-              <option value="50">50</option>
-            </select>
-          </div>
-          <div><div class="muted small">Concorso da giocare</div><input id="playContest"></div>
-        </div>
-        <div class="row">
-          <div><div class="muted small">Data concorso</div><input id="playDate" type="date"></div>
-          <div class="item" style="background:#0a1836;border:1px solid #29446f">
-            <div><strong>Modalità automatica intelligente</strong></div>
-            <div class="small" style="margin-top:6px">Il sistema analizza storico, trend recenti, numeri mancanti, coppie ricorrenti, distribuzione e tuoi errori storici. Decide lui se essere più prudente o più aggressivo.</div>
-          </div>
-        </div>
-        <div class="row">
-          <button class="btn-blue" id="btnGenerate">Genera sestine</button>
-          <button class="btn-yellow" id="btnMarkPlayed">Segna tutte come giocate</button>
-          <button class="btn-grey" id="btnUseNext">Usa prossimo concorso</button>
-          <button class="btn-grey" id="btnToggleSystem">Crea sistema avanzato</button>
-        </div>
-        <div class="msg" id="msgGen"></div>
+    <p class="muted small">Scegli solo quante sestine vuoi. Super6plus esegue automaticamente in background analisi, confronto dei modelli e selezione finale.</p>
+
+    <div class="row" style="margin-top:14px">
+      <div>
+        <div class="muted small">Quante sestine</div>
+        <select id="f_results">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8" selected>8</option>
+          <option value="10">10</option>
+          <option value="12">12</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+          <option value="25">25</option>
+          <option value="30">30</option>
+          <option value="40">40</option>
+          <option value="50">50</option>
+        </select>
       </div>
-      <div class="grid" style="gap:10px">
-        <div class="item" style="background:#0a1836;border:1px solid #29446f">
-          <div><strong>Come lavora il motore</strong></div>
-          <div class="small" style="margin-top:8px">Non devi più toccare filtri tecnici. Il motore calcola da solo i parametri migliori in base all'andamento recente delle estrazioni e al tuo storico.</div>
-        </div>
-        <div class="item" style="background:#0a1836;border:1px solid #29446f">
-          <div><strong>Storico preservato</strong></div>
-          <div class="small" style="margin-top:8px">Il file continua a usare la stessa chiave di salvataggio locale e gli stessi import/export backup JSON, così non perdi il lavoro già registrato quando sostituisci il file.</div>
-        </div>
+      <div>
+        <div class="muted small">Concorso</div>
+        <input id="playContest">
+      </div>
+      <div>
+        <div class="muted small">Data</div>
+        <input id="playDate" type="date">
       </div>
     </div>
 
+    <div class="row" style="margin-top:12px">
+      <button class="btn-blue" id="btnGenerate">Genera sestine</button>
+      <button class="btn-yellow" id="btnMarkPlayed">Segna come giocate</button>
+      <button class="btn-grey" id="btnUseNext">Prossimo concorso</button>
+      <button class="btn-grey" id="btnToggleSystem">Crea sistema avanzato</button>
+    </div>
+    <div class="msg" id="msgGen"></div>
+
+    <!-- Parametri tecnici mantenuti solo per compatibilità interna: non sono esposti all'utente. -->
     <div id="autoAdvancedFilters" style="display:none">
       <input id="f_pool" value="25000">
       <input id="f_sumMin" value="110">
@@ -317,11 +307,7 @@
       <input id="f_minDecs" value="4">
       <input id="f_lowMin" value="2">
       <input id="f_lowMax" value="4">
-      <select id="f_zoneMode">
-        <option value="OFF">OFF</option>
-        <option value="MORBIDO" selected>MORBIDO</option>
-        <option value="RIGIDO">RIGIDO</option>
-      </select>
+      <select id="f_zoneMode"><option value="OFF">OFF</option><option value="MORBIDO" selected>MORBIDO</option><option value="RIGIDO">RIGIDO</option></select>
       <input id="f_zoneMax" value="2">
       <input id="f_zoneMinCovered" value="4">
       <input id="f_zoneRecent" value="18">
@@ -336,41 +322,9 @@
     </div>
 
     <div class="sep"></div>
-    <div class="muted small" style="margin-top:8px">Quando premi Genera, scegli tu quante sestine produrre: da 1 fino a 50, tutte filtrate dal motore AI multi-periodo.</div>
-    <div id="generatedList" class="list" style="margin-top:12px"></div>
-    <div class="sep"></div>
-    <div class="card" style="background:#081730;border-color:#27426d">
-      <h3>Report Motore</h3>
-      <div id="absoluteReport" class="list"></div>
-    </div>
+    <div id="generatedList" class="list"></div>
   </div>
 
-
-  <div class="card" id="v46Lab" style="margin-top:16px;border-color:#67c0ff">
-    <h2>Laboratorio v46 — Walk-forward fuori campione</h2>
-    <p class="muted small">Ogni concorso viene simulato usando solo le estrazioni precedenti. Confronta Random puro, frequenze shrinkate, frequenze+coppie shrinkate e un V45-Core congelato. La baseline casuale usa Monte Carlo con seed deterministico.</p>
-    <div class="row" style="margin-top:12px">
-      <div><div class="muted small">Training minimo</div><input id="v46MinTrain" type="number" min="30" max="1000" value="180"></div>
-      <div><div class="muted small">Concorsi test</div><select id="v46TestWindow"><option value="60">60</option><option value="120" selected>120</option><option value="240">240</option><option value="500">500</option><option value="all">Tutti disponibili</option></select></div>
-      <div><div class="muted small">Righe per concorso</div><input id="v46Lines" type="number" min="1" max="20" value="5"></div>
-      <div><div class="muted small">Repliche Monte Carlo</div><input id="v46Mc" type="number" min="30" max="500" value="120"></div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn-blue" id="btnV46Backtest">Esegui walk-forward</button>
-      <button class="btn-grey" id="btnV46Export">Esporta report CSV</button>
-    </div>
-    <div class="msg" id="v46Msg"></div>
-    <div class="table-wrap" style="overflow:auto;margin-top:12px">
-      <table class="pattern-table">
-        <thead><tr><th>Strategia</th><th>Linee</th><th>≥2</th><th>≥3</th><th>≥4</th><th>Ambi</th><th>Terni</th><th>Quaterne</th><th>Media hit</th><th>Z vs random</th><th>Blocchi</th><th>Esito</th></tr></thead>
-        <tbody id="v46Results"><tr><td colspan="12" class="muted">Esegui il backtest per misurare il motore.</td></tr></tbody>
-      </table>
-    </div>
-    <div class="item" style="margin-top:12px;background:#081730;border:1px solid #29446f">
-      <strong>Regola v46</strong>
-      <div class="small" style="margin-top:6px">Una strategia viene indicata come “segnale da approfondire” solo con Z ≥ 2 sul numero di linee con almeno 2 colpi e vantaggio in almeno 3 blocchi cronologici su 4. Non significa capacità di prevedere il 6: serve soltanto a evitare di promuovere euristiche che non battono il caso nel test.</div>
-    </div>
-  </div>
 
   <div class="card" id="mooni_system_box" style="margin-top:16px; display:none;">
     <h2>Nuovi sistemi in stile Sisal</h2>
@@ -3119,39 +3073,17 @@ function render(){
   sel.innerHTML='<option value="">Seleziona concorso</option>'+selectRows.map(d=>'<option value="'+d.contest+'">Concorso '+d.contest+' · '+d.date+'</option>').join('');
 
   const gen=byId('generatedList');
-  gen.innerHTML=state.generated.length?'':'<div class="muted">Scegli quante sestine vuoi e premi Genera. Il motore decide da solo i parametri.</div>';
+  gen.innerHTML=state.generated.length?'':'<div class="muted">Premi Genera sestine.</div>';
   state.generated.forEach((g,idx)=>{
-    const div=document.createElement('div'); div.className='item';
-    const meta=g.meta||{};
-    div.innerHTML='<div><strong>Sestina '+(idx+1)+'</strong><span class="tag">PRONTA DA GIOCARE</span></div>'
-      +'<div class="mono" style="margin-top:8px;font-size:24px;font-weight:700">'+g.numbers.join(' - ')+'</div>'
-      +renderExtraBalls(g, null)
-      +'<div class="small" style="margin-top:8px">Score interno: '+(meta.finalScore??meta.score??'-')+' · compatibilità dinamica: '+(meta.dynCompatScore??'-')+'/100 · calendario: '+(meta.calendarScore??'-')+'/100 · profilo: '+(meta.label||meta.variant||'base')+'</div>'
-      +'<div class="small" style="margin-top:4px">Modalità motore: '+((state.settings && state.settings.autoModeUsed) || 'balanced')+' · Questa è una delle sestine finali già selezionate dal motore.</div>';
+    const div=document.createElement('div');
+    div.className='item';
+    div.innerHTML=
+      '<div class="small muted">Sestina '+(idx+1)+'</div>'+
+      '<div class="mono" style="margin-top:7px;font-size:27px;font-weight:800;letter-spacing:.5px">'+
+      g.numbers.join('  -  ')+
+      '</div>';
     gen.appendChild(div);
   });
-
-  const ar=byId('absoluteReport');
-  if(ar){
-    const rep=state.absoluteReport || buildAbsoluteReport(personalErrorProfile(), learnedShiftDeltas(personalErrorProfile()), state.generated||[]);
-    const learnedTxt=(rep.learned||[]).length ? rep.learned.map(x=>((x.delta>0?'+':'')+x.delta)+' ('+x.count+')').join(' · ') : 'nessun pattern forte';
-    const consensusTxt=(rep.consensus||[]).slice(0, Math.max(6, state.settings.consensusCount||12)).map(x=>x.n).join(' - ');
-    ar.innerHTML='';
-    const c1=document.createElement('div'); c1.className='item';
-    c1.innerHTML='<div class="report-grid">'
-      +'<div class="report-card"><div class="big mono">'+(rep.profile?.samples||0)+'</div><div class="small">campioni errori letti</div></div>'
-      +'<div class="report-card"><div class="big mono">'+(rep.profile?.nearHits||0)+'</div><div class="small">near miss entro 3 punti</div></div>'
-      +'<div class="report-card"><div class="big mono">'+(rep.profile?.exactHits||0)+'</div><div class="small">colpi esatti storici</div></div>'
-      +'</div>';
-    const c2=document.createElement('div'); c2.className='item';
-    c2.innerHTML='<div><strong>Shift imparati</strong></div><div class="small" style="margin-top:6px">'+learnedTxt+'</div><div class="small" style="margin-top:8px">Il motore usa questi scostamenti per generare varianti adattive.</div>';
-    const auto=rep.autoTune||autoTuneFactors(rep.profile||{});
-    const c3=document.createElement('div'); c3.className='item';
-    c3.innerHTML='<div><strong>Auto-calibrazione attiva</strong></div><div class="small" style="margin-top:6px">Shift bias: '+auto.shiftBias.toFixed(2)+' · Fuzzy bias: '+auto.fuzzyBias.toFixed(2)+' · Penalità ripetizioni: '+auto.repeatPenalty.toFixed(2)+' · Drift: '+(auto.driftBias<0?'verso il basso':(auto.driftBias>0?'verso l\'alto':'neutro'))+'</div><div class="small" style="margin-top:8px">I pesi si regolano in base agli errori storici registrati nelle tue giocate.</div>';
-    const c4=document.createElement('div'); c4.className='item';
-    c4.innerHTML='<div><strong>Numeri consenso attuali</strong></div><div class="mono" style="margin-top:6px">'+(consensusTxt||'nessuno')+'</div>';
-    ar.appendChild(c1); ar.appendChild(c2); ar.appendChild(c3); ar.appendChild(c4);
-  }
 
   const pl=byId('playedList');
   pl.innerHTML=state.played.length?'':'<div class="muted">Nessuna giocata salvata.</div>';
@@ -4320,6 +4252,182 @@ window.addEventListener('DOMContentLoaded',()=>{
   const e=byId('btnV46Export'); if(e) e.onclick=V46_exportCSV;
   V46_LAST_REPORT=state.v46Backtest||null; V46_renderReport();
 });
+
+
+/* =========================================================
+   SUPER6PLUS v47 - AUTOPILOT
+   Il walk-forward resta interno. L'utente vede solo le sestine.
+   ========================================================= */
+
+// Nessun Jolly/SuperStar viene inventato automaticamente.
+buildAutoExtras = function(){
+  return {jolly:null, superstar:null};
+};
+
+function V47_historySignature(){
+  const draws=V46_sortedDraws();
+  const raw=draws.map(d=>String(d.date)+'|'+keyOf(d.numbers||[])).join(';');
+  return V46_hash(raw).toString(16)+'|'+draws.length;
+}
+
+async function V47_validateSilently(){
+  const all=V46_sortedDraws();
+  const minTrain=Math.min(180, Math.max(60, Math.floor(all.length*0.25)));
+  if(all.length<=minTrain+20){
+    return {
+      signature:V47_historySignature(),
+      strategy:'random',
+      createdAt:new Date().toISOString(),
+      reason:'storico_insufficiente',
+      report:[]
+    };
+  }
+
+  const testCount=Math.min(120, all.length-minTrain);
+  const lines=5;
+  const mc=100;
+  const targets=all.slice(-testCount);
+  const firstTargetIndex=all.length-targets.length;
+  const metrics={};
+  V46_STRATEGIES.forEach(s=>metrics[s.id]=V46_emptyMetric());
+
+  for(let ti=0;ti<targets.length;ti++){
+    const targetIndex=firstTargetIndex+ti;
+    const target=all[targetIndex];
+    const past=all.slice(0,targetIndex); // solo passato
+    const block=Math.min(3,Math.floor(ti*4/Math.max(1,targets.length)));
+
+    for(const st of V46_STRATEGIES){
+      const seed=V46_hash('v47|'+st.id+'|'+target.date+'|'+lines);
+      const rows=V46_generate(st.id,past,lines,seed);
+      rows.forEach(line=>V46_addMetric(metrics[st.id],V46_hits(line,target),block));
+    }
+    if(ti%10===0) await new Promise(r=>setTimeout(r,0));
+  }
+
+  const randG2=[];
+  for(let rep=0;rep<mc;rep++){
+    let g2=0;
+    for(let ti=0;ti<targets.length;ti++){
+      const target=targets[ti];
+      const rng=V46_rng(V46_hash('v47mc|'+rep+'|'+target.date));
+      for(let l=0;l<lines;l++){
+        if(V46_hits(V46_randomCombo(rng),target)>=2) g2++;
+      }
+    }
+    randG2.push(g2);
+    if(rep%20===0) await new Promise(r=>setTimeout(r,0));
+  }
+
+  const randomMean=V46_mean(randG2);
+  const randomSd=V46_sd(randG2);
+
+  const report=V46_STRATEGIES.map(st=>{
+    const m=metrics[st.id];
+    const z=st.id==='random'?0:(randomSd>0?(m.g2-randomMean)/randomSd:0);
+    const baselineRate=randomMean/Math.max(1,m.lines);
+    const blockWins=m.blocks.reduce(
+      (a,x,i)=>a+((x/Math.max(1,m.blockLines[i]))>baselineRate?1:0),0
+    );
+    const qualified=st.id!=='random' && z>=2 && blockWins>=3;
+    return {
+      id:st.id,label:st.label,...m,
+      meanHits:m.totalHits/Math.max(1,m.lines),
+      z,blockWins,qualified
+    };
+  });
+
+  const qualified=report
+    .filter(r=>r.qualified)
+    .sort((a,b)=>b.z-a.z);
+
+  // Se nessun modello dimostra un vantaggio fuori campione,
+  // l'Autopilot usa la baseline casuale invece di fingere una previsione.
+  const strategy=qualified.length ? qualified[0].id : 'random';
+
+  return {
+    signature:V47_historySignature(),
+    strategy,
+    createdAt:new Date().toISOString(),
+    tested:targets.length,
+    lines,
+    mc,
+    randomMean,
+    randomSd,
+    report
+  };
+}
+
+async function V47_getValidatedStrategy(){
+  const sig=V47_historySignature();
+  const cached=state.v47AutoValidation;
+  if(cached && cached.signature===sig && cached.strategy){
+    return cached.strategy;
+  }
+
+  msg('msgGen','Analisi automatica in corso…',false);
+  const validation=await V47_validateSilently();
+  state.v47AutoValidation=validation;
+  saveState();
+  return validation.strategy || 'random';
+}
+
+// Override finale: un solo pulsante, nessun laboratorio visibile.
+generate = async function(){
+  if(V45_GENERATING_NOW) return;
+  if(!state.draws.length) return msg('msgGen','Prima importa lo storico.',true);
+
+  V45_GENERATING_NOW=true;
+  const btn=byId('btnGenerate');
+  if(btn){ btn.disabled=true; btn.textContent='Analizzo e genero…'; }
+
+  try{
+    const wanted=Math.max(1,Math.min(50,parseInt(byId('f_results').value,10)||8));
+    const strategy=await V47_getValidatedStrategy();
+    const past=V46_sortedDraws();
+    const contest=String(byId('playContest').value || state.playContest || nextContest()).trim();
+    const date=String(byId('playDate').value || state.playDate || '').trim();
+    const seed=V46_hash(
+      'v47-final|'+strategy+'|'+V47_historySignature()+'|'+contest+'|'+date+'|'+wanted
+    );
+
+    let rows=V46_generate(strategy,past,wanted,seed);
+
+    // Sicurezza: completa comunque il numero richiesto di righe.
+    if(rows.length<wanted){
+      const rng=V46_rng(seed^0x9e3779b9);
+      const seen=new Set(rows.map(keyOf));
+      while(rows.length<wanted){
+        const x=V46_randomCombo(rng);
+        const k=keyOf(x);
+        if(!seen.has(k)){ seen.add(k); rows.push(x); }
+      }
+    }
+
+    state.generated=rows.slice(0,wanted).map(numbers=>({
+      numbers,
+      jolly:null,
+      superstar:null,
+      meta:{label:'Autopilot',modelId:strategy}
+    }));
+    state.settings.results=wanted;
+    state.playContest=contest;
+    state.playDate=date;
+    state.absoluteReport=null;
+    saveState();
+    render();
+    msg('msgGen','Sestine pronte.',false);
+  }catch(e){
+    console.error(e);
+    msg('msgGen','Errore durante la generazione: '+(e.message||e),true);
+  }finally{
+    V45_GENERATING_NOW=false;
+    if(btn){ btn.disabled=false; btn.textContent='Genera sestine'; }
+  }
+};
+
+// Il vecchio laboratorio non è più necessario né visibile.
+// Eventuali report v46 già salvati restano nel backup per compatibilità.
 
 </script>
 <!-- Firebase live sync riattivabile in v43 Cloud Sync con Firebase Realtime Database. -->
