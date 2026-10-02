@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v47 — Autopilot</title>
+  <title>Super6plus v48 — Autopilot</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,7 +199,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v47 — Autopilot</h1>
+  <h1>Super6plus v48 — Autopilot</h1>
   <p class="muted">Super6plus analizza automaticamente lo storico, verifica internamente i modelli e produce direttamente le sestine finali. Nessun parametro statistico da configurare e nessun test da eseguire manualmente.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
@@ -232,22 +232,52 @@
     </div>
 
     <div class="card">
-      <h2>Nuova estrazione uscita</h2>
-      <div class="row">
-        <div><div class="muted small">Concorso</div><input id="drawContest" /></div>
-        <div><div class="muted small">Data</div><input id="drawDate" type="date" /></div>
-        <div><div class="muted small">Jolly</div><input id="drawJolly" /></div>
-        <div><div class="muted small">SuperStar</div><input id="drawSuper" /></div>
+      <h2>Importa nuova estrazione</h2>
+      <p class="muted small">
+        Niente inserimento manuale. Copia il risultato dal sito SuperEnalotto e incollalo qui,
+        oppure carica uno screenshot: Super6plus rileva automaticamente concorso, data,
+        6 numeri, Jolly e SuperStar.
+      </p>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn-blue" id="btnDrawClipboard">Incolla dagli appunti</button>
+        <button class="btn-grey" id="btnAnalyzeDrawText">Analizza testo</button>
       </div>
-      <div class="muted small" style="margin-top:10px">6 numeri estratti</div>
-      <div class="nums" style="margin-top:8px">
-        <input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum"><input class="drawNum">
+
+      <textarea id="drawPasteText" rows="7" style="margin-top:10px"
+        placeholder="Incolla qui il testo copiato dalla pagina dell'estrazione..."></textarea>
+
+      <div class="sep"></div>
+
+      <div class="muted small">Oppure carica uno screenshot / immagine del risultato</div>
+      <input id="drawImageFile" type="file" accept="image/*" style="margin-top:8px">
+      <div id="drawOcrProgress" class="small muted" style="margin-top:8px"></div>
+      <img id="drawImagePreview" alt="" style="display:none;max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;border:1px solid #29446f">
+
+      <div id="drawDetectedBox" class="item" style="display:none;margin-top:12px;background:#081730;border:1px solid #355785">
+        <div class="small muted">Estrazione rilevata</div>
+        <div id="drawDetectedMeta" style="font-weight:800;margin-top:5px"></div>
+        <div id="drawDetectedNums" class="nums-hitline compact"></div>
+        <div id="drawDetectedExtras" class="small" style="margin-top:8px"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn-green" id="btnConfirmDetectedDraw">Conferma e salva</button>
+          <button class="btn-grey" id="btnClearDetectedDraw">Annulla</button>
+        </div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn-green" id="btnSaveDraw">Salva estrazione</button>
-        <button class="btn-grey" id="btnFillNext">Precompila prossimo concorso</button>
-      </div>
+
       <div class="msg" id="msgDraw"></div>
+
+      <!-- Campi legacy nascosti: servono solo per compatibilità con il resto dell'app. -->
+      <div style="display:none" aria-hidden="true">
+        <input id="drawContest">
+        <input id="drawDate" type="date">
+        <input id="drawJolly">
+        <input id="drawSuper">
+        <input class="drawNum"><input class="drawNum"><input class="drawNum">
+        <input class="drawNum"><input class="drawNum"><input class="drawNum">
+        <button id="btnSaveDraw" type="button"></button>
+        <button id="btnFillNext" type="button"></button>
+      </div>
     </div>
   </div>
 
@@ -4428,6 +4458,336 @@ generate = async function(){
 
 // Il vecchio laboratorio non è più necessario né visibile.
 // Eventuali report v46 già salvati restano nel backup per compatibilità.
+
+
+
+/* =========================================================
+   SUPER6PLUS v48 - IMPORT AUTOMATICO NUOVA ESTRAZIONE
+   Testo copiato dal sito oppure screenshot con OCR.
+   ========================================================= */
+
+let V48_pendingDraw = null;
+let V48_tesseractPromise = null;
+
+function V48_normalizeText(raw){
+  return String(raw||'')
+    .replace(/\u00a0/g,' ')
+    .replace(/[–—−]/g,'-')
+    .replace(/\r/g,'')
+    .replace(/J0LLY/gi,'JOLLY')
+    .replace(/SUPER\s*5TAR/gi,'SUPERSTAR')
+    .replace(/SUPER\s*STAR/gi,'SUPERSTAR')
+    .replace(/[ \t]+/g,' ')
+    .trim();
+}
+
+function V48_isoDate(y,m,d){
+  y=Number(y); m=Number(m); d=Number(d);
+  if(!(y>=1990 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31)) return '';
+  return String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+
+function V48_extractDate(text){
+  let m=text.match(/\b(20\d{2})[\/.\-](0?[1-9]|1[0-2])[\/.\-]([0-2]?\d|3[01])\b/);
+  if(m) return {value:V48_isoDate(m[1],m[2],m[3]), raw:m[0]};
+
+  m=text.match(/\b([0-2]?\d|3[01])[\/.\-](0?[1-9]|1[0-2])[\/.\-](20\d{2})\b/);
+  if(m) return {value:V48_isoDate(m[3],m[2],m[1]), raw:m[0]};
+
+  const months={
+    gennaio:1,febbraio:2,marzo:3,aprile:4,maggio:5,giugno:6,
+    luglio:7,agosto:8,settembre:9,ottobre:10,novembre:11,dicembre:12
+  };
+  m=text.match(/\b([0-2]?\d|3[01])\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(20\d{2})\b/i);
+  if(m) return {value:V48_isoDate(m[3],months[m[2].toLowerCase()],m[1]), raw:m[0]};
+  return {value:'',raw:''};
+}
+
+function V48_extractContest(text){
+  const patterns=[
+    /\bconcorso\s*(?:n(?:umero)?\.?|n[°º]?|#)?\s*[:\-]?\s*(\d{2,5})\b/i,
+    /\bn[°º]\s*(\d{2,5})\s+(?:del|di)\b/i
+  ];
+  for(const p of patterns){
+    const m=text.match(p);
+    if(m) return {value:String(parseInt(m[1],10)),raw:m[0]};
+  }
+  return {value:'',raw:''};
+}
+
+function V48_extractLabelNumber(text,labelRegex){
+  const m=text.match(labelRegex);
+  if(!m) return {value:null,raw:''};
+  const n=Number(m[1]);
+  return {value:(Number.isInteger(n)&&n>=1&&n<=90)?n:null,raw:m[0]};
+}
+
+function V48_numbersInLine(line){
+  return (line.match(/\b\d{1,2}\b/g)||[])
+    .map(Number)
+    .filter(n=>n>=1&&n<=90);
+}
+
+function V48_extractSix(text, removals=[]){
+  const lines=text.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const forbidden=/concorso|jolly|superstar|super\s*star|jackpot|premi|vincit|quote|data|estrazione\s+n|anno/i;
+  const lineCandidates=[];
+
+  for(const line of lines){
+    if(forbidden.test(line)) continue;
+    const nums=V48_numbersInLine(line);
+    const unique=[...new Set(nums)];
+    if(unique.length===6 && nums.length===6){
+      lineCandidates.push({nums:sortNums(unique),score:100});
+    }else if(unique.length===6 && nums.length<=8){
+      lineCandidates.push({nums:sortNums(unique),score:75});
+    }
+  }
+  if(lineCandidates.length){
+    lineCandidates.sort((a,b)=>b.score-a.score);
+    return lineCandidates[0].nums;
+  }
+
+  // Rimuove concorso, data, Jolly e SuperStar prima del fallback.
+  let clean=text;
+  removals.filter(Boolean).forEach(x=>{ clean=clean.replace(x,' '); });
+  clean=clean
+    .replace(/\b(?:concorso|jolly|superstar|super\s*star)\b/gi,' ')
+    .replace(/\b20\d{2}\b/g,' ');
+
+  // Se Jolly era presente, la sestina tende a essere gli ultimi 6 valori validi prima di Jolly.
+  const jPos=text.search(/\bjolly\b/i);
+  if(jPos>0){
+    let before=text.slice(0,jPos);
+    removals.filter(Boolean).forEach(x=>{ before=before.replace(x,' '); });
+    const vals=(before.match(/\b\d{1,2}\b/g)||[]).map(Number).filter(n=>n>=1&&n<=90);
+    for(let i=vals.length-6;i>=0;i--){
+      const w=vals.slice(i,i+6);
+      if(w.length===6 && new Set(w).size===6) return sortNums(w);
+    }
+  }
+
+  const vals=(clean.match(/\b\d{1,2}\b/g)||[]).map(Number).filter(n=>n>=1&&n<=90);
+  let best=null, bestScore=-1;
+  for(let i=0;i<=vals.length-6;i++){
+    const w=vals.slice(i,i+6);
+    if(new Set(w).size!==6) continue;
+    const s=sortNums(w);
+    const spread=s[5]-s[0];
+    const score=20 + Math.min(40,spread) + new Set(s.map(n=>Math.floor((n-1)/10))).size*3;
+    if(score>bestScore){ bestScore=score; best=s; }
+  }
+  return best||[];
+}
+
+function V48_parseDraw(raw){
+  const text=V48_normalizeText(raw);
+  if(!text) return {ok:false,error:'Nessun testo da analizzare.'};
+
+  const contest=V48_extractContest(text);
+  const date=V48_extractDate(text);
+  const jolly=V48_extractLabelNumber(text,/\bjolly\b\s*(?:n[°º.]?\s*)?[:\-]?\s*([1-9]|[1-8]\d|90)\b/i);
+  const superstar=V48_extractLabelNumber(text,/\bsuperstar\b\s*(?:n[°º.]?\s*)?[:\-]?\s*([1-9]|[1-8]\d|90)\b/i);
+
+  const numbers=V48_extractSix(text,[contest.raw,date.raw,jolly.raw,superstar.raw]);
+  const errors=[];
+  if(!contest.value) errors.push('concorso');
+  if(!date.value) errors.push('data');
+  if(!validSix(numbers)) errors.push('6 numeri');
+  if(!Number.isInteger(jolly.value)) errors.push('Jolly');
+  if(!Number.isInteger(superstar.value)) errors.push('SuperStar');
+  if(Number.isInteger(jolly.value) && numbers.includes(jolly.value)) errors.push('Jolly distinto dalla sestina');
+
+  if(errors.length){
+    return {
+      ok:false,
+      error:'Non riesco a leggere correttamente: '+errors.join(', ')+'. Copia una porzione più completa della pagina oppure usa uno screenshot più nitido.',
+      raw:text
+    };
+  }
+
+  return {
+    ok:true,
+    draw:{
+      contest:contest.value,
+      date:date.value,
+      numbers:sortNums(numbers),
+      jolly:jolly.value,
+      superstar:superstar.value,
+      origin:'import-auto-v48'
+    },
+    raw:text
+  };
+}
+
+function V48_showDetected(draw){
+  V48_pendingDraw=draw;
+  const box=byId('drawDetectedBox');
+  const meta=byId('drawDetectedMeta');
+  const nums=byId('drawDetectedNums');
+  const extras=byId('drawDetectedExtras');
+  if(!box||!meta||!nums||!extras) return;
+
+  meta.textContent='Concorso '+draw.contest+' · '+draw.date;
+  nums.innerHTML=draw.numbers.map(n=>'<span class="ball draw compact">'+n+'</span>').join('');
+  extras.innerHTML='Jolly: <strong>'+draw.jolly+'</strong> &nbsp; · &nbsp; SuperStar: <strong>'+draw.superstar+'</strong>';
+  box.style.display='block';
+  msg('msgDraw','Controlla il risultato rilevato e premi Conferma e salva.',false);
+}
+
+function V48_clearDetected(){
+  V48_pendingDraw=null;
+  const box=byId('drawDetectedBox'); if(box) box.style.display='none';
+  const img=byId('drawImagePreview'); if(img){img.style.display='none'; img.removeAttribute('src');}
+  const file=byId('drawImageFile'); if(file) file.value='';
+  const prog=byId('drawOcrProgress'); if(prog) prog.textContent='';
+}
+
+function V48_analyzeText(textOverride){
+  const txt=(textOverride!==undefined?textOverride:(byId('drawPasteText')?.value||''));
+  const parsed=V48_parseDraw(txt);
+  if(!parsed.ok){
+    V48_pendingDraw=null;
+    const box=byId('drawDetectedBox'); if(box) box.style.display='none';
+    return msg('msgDraw',parsed.error,true);
+  }
+  V48_showDetected(parsed.draw);
+}
+
+async function V48_readClipboard(){
+  try{
+    if(!navigator.clipboard?.readText) throw new Error('Clipboard API non disponibile.');
+    const txt=await navigator.clipboard.readText();
+    if(!txt.trim()) throw new Error('Gli appunti non contengono testo.');
+    byId('drawPasteText').value=txt;
+    V48_analyzeText(txt);
+  }catch(e){
+    msg('msgDraw','Non riesco a leggere automaticamente gli appunti. Incolla il testo nel riquadro e premi Analizza testo.',true);
+  }
+}
+
+function V48_loadTesseract(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  if(V48_tesseractPromise) return V48_tesseractPromise;
+
+  V48_tesseractPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.async=true;
+    s.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR non disponibile'));
+    s.onerror=()=>reject(new Error('Impossibile caricare il motore OCR'));
+    document.head.appendChild(s);
+  });
+  return V48_tesseractPromise;
+}
+
+async function V48_ocrImage(file){
+  if(!file) return;
+  const prog=byId('drawOcrProgress');
+  const img=byId('drawImagePreview');
+
+  try{
+    if(img){
+      img.src=URL.createObjectURL(file);
+      img.style.display='block';
+    }
+    if(prog) prog.textContent='Carico il lettore immagine…';
+    msg('msgDraw','Lettura screenshot in corso…',false);
+
+    const T=await V48_loadTesseract();
+    const result=await T.recognize(file,'ita',{
+      logger:m=>{
+        if(!prog) return;
+        if(m.status==='recognizing text'){
+          prog.textContent='Leggo immagine: '+Math.round((m.progress||0)*100)+'%';
+        }else{
+          prog.textContent='OCR: '+String(m.status||'elaborazione');
+        }
+      }
+    });
+
+    const text=result?.data?.text||'';
+    byId('drawPasteText').value=text;
+    if(prog) prog.textContent='Lettura completata.';
+    V48_analyzeText(text);
+  }catch(e){
+    console.error(e);
+    if(prog) prog.textContent='';
+    msg('msgDraw','Non sono riuscito a leggere lo screenshot. Prova un ritaglio più nitido oppure incolla il testo copiato dal sito.',true);
+  }
+}
+
+function V48_commitDetected(){
+  const d=V48_pendingDraw;
+  if(!d) return msg('msgDraw','Prima importa o analizza un’estrazione.',true);
+
+  const contest=String(d.contest);
+  const existingIndex=(state.draws||[]).findIndex(x=>String(x.contest)===contest);
+  const oldPrizes=existingIndex>=0 ? state.draws[existingIndex].prizes : null;
+
+  const rec=ensureDrawPrizes({
+    contest,
+    date:d.date,
+    numbers:sortNums(d.numbers),
+    jolly:d.jolly,
+    superstar:d.superstar,
+    origin:d.origin||'import-auto-v48',
+    prizes:oldPrizes||emptyPrizes()
+  });
+
+  if(existingIndex>=0) state.draws[existingIndex]=rec;
+  else state.draws.push(rec);
+
+  // Ordina per data; a parità usa il numero di concorso.
+  state.draws.sort((a,b)=>{
+    const da=String(a.date||''), db=String(b.date||'');
+    if(da!==db) return db.localeCompare(da);
+    return (Number(b.contest)||0)-(Number(a.contest)||0);
+  });
+
+  state.generated=[];
+  state.playContest=String((Number(contest)||0)+1);
+  state.playDate='';
+  state.latestCheckedContest=contest;
+
+  // Apprendimento v46 è idempotente: lo stesso record non viene contato due volte.
+  try{
+    ensureLearningState?.();
+    AI_learn_draw?.(rec);
+    AI_learn_played?.();
+  }catch(e){ console.warn('Learning update:',e); }
+
+  saveState();
+  render();
+
+  byId('drawPasteText').value='';
+  V48_clearDetected();
+  msg('msgDraw','Concorso '+contest+' importato e salvato automaticamente.',false);
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const clip=byId('btnDrawClipboard');
+  const analyze=byId('btnAnalyzeDrawText');
+  const file=byId('drawImageFile');
+  const confirmBtn=byId('btnConfirmDetectedDraw');
+  const clearBtn=byId('btnClearDetectedDraw');
+  const ta=byId('drawPasteText');
+
+  if(clip) clip.onclick=V48_readClipboard;
+  if(analyze) analyze.onclick=()=>V48_analyzeText();
+  if(file) file.onchange=()=>V48_ocrImage(file.files?.[0]);
+  if(confirmBtn) confirmBtn.onclick=V48_commitDetected;
+  if(clearBtn) clearBtn.onclick=V48_clearDetected;
+
+  // Se incolli direttamente nel riquadro, analizza automaticamente.
+  if(ta){
+    ta.addEventListener('paste',()=>{
+      setTimeout(()=>{
+        if((ta.value||'').trim().length>10) V48_analyzeText();
+      },50);
+    });
+  }
+});
 
 </script>
 <!-- Firebase live sync riattivabile in v43 Cloud Sync con Firebase Realtime Database. -->
