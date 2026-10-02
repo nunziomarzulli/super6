@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v48 — Autopilot</title>
+  <title>Super6plus v49 — Autopilot</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,7 +199,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v48 — Autopilot</h1>
+  <h1>Super6plus v49 — Autopilot</h1>
   <p class="muted">Super6plus analizza automaticamente lo storico, verifica internamente i modelli e produce direttamente le sestine finali. Nessun parametro statistico da configurare e nessun test da eseguire manualmente.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
@@ -235,8 +235,8 @@
       <h2>Importa nuova estrazione</h2>
       <p class="muted small">
         Niente inserimento manuale. Copia il risultato dal sito SuperEnalotto e incollalo qui,
-        oppure carica uno screenshot: Super6plus rileva automaticamente concorso, data,
-        6 numeri, Jolly e SuperStar.
+        oppure carica uno screenshot. Bastano anche solo la combinazione vincente e il Jolly:
+        se concorso o data non sono presenti, Super6plus li completa automaticamente.
       </p>
 
       <div class="row" style="margin-top:10px">
@@ -4580,44 +4580,60 @@ function V48_extractSix(text, removals=[]){
   return best||[];
 }
 
+function V48_localTodayISO(){
+  const d=new Date();
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
 function V48_parseDraw(raw){
   const text=V48_normalizeText(raw);
   if(!text) return {ok:false,error:'Nessun testo da analizzare.'};
 
-  const contest=V48_extractContest(text);
-  const date=V48_extractDate(text);
+  const contestFound=V48_extractContest(text);
+  const dateFound=V48_extractDate(text);
   const jolly=V48_extractLabelNumber(text,/\bjolly\b\s*(?:n[°º.]?\s*)?[:\-]?\s*([1-9]|[1-8]\d|90)\b/i);
   const superstar=V48_extractLabelNumber(text,/\bsuperstar\b\s*(?:n[°º.]?\s*)?[:\-]?\s*([1-9]|[1-8]\d|90)\b/i);
 
-  const numbers=V48_extractSix(text,[contest.raw,date.raw,jolly.raw,superstar.raw]);
-  const errors=[];
-  if(!contest.value) errors.push('concorso');
-  if(!date.value) errors.push('data');
-  if(!validSix(numbers)) errors.push('6 numeri');
-  if(!Number.isInteger(jolly.value)) errors.push('Jolly');
-  if(!Number.isInteger(superstar.value)) errors.push('SuperStar');
-  if(Number.isInteger(jolly.value) && numbers.includes(jolly.value)) errors.push('Jolly distinto dalla sestina');
+  const numbers=V48_extractSix(text,[contestFound.raw,dateFound.raw,jolly.raw,superstar.raw]);
 
-  if(errors.length){
+  if(!validSix(numbers)){
     return {
       ok:false,
-      error:'Non riesco a leggere correttamente: '+errors.join(', ')+'. Copia una porzione più completa della pagina oppure usa uno screenshot più nitido.',
+      error:'Non riesco a individuare con sicurezza i 6 numeri della combinazione vincente.',
       raw:text
     };
   }
 
-  return {
-    ok:true,
-    draw:{
-      contest:contest.value,
-      date:date.value,
-      numbers:sortNums(numbers),
-      jolly:jolly.value,
-      superstar:superstar.value,
-      origin:'import-auto-v48'
-    },
-    raw:text
+  const inferredContest=String(nextContest());
+  const inferredDate=V48_localTodayISO();
+
+  const draw={
+    contest:contestFound.value || inferredContest,
+    date:dateFound.value || inferredDate,
+    numbers:sortNums(numbers),
+    jolly:Number.isInteger(jolly.value) ? jolly.value : null,
+    superstar:Number.isInteger(superstar.value) ? superstar.value : null,
+    origin:'import-auto-v49',
+    inferred:{
+      contest:!contestFound.value,
+      date:!dateFound.value,
+      jolly:!Number.isInteger(jolly.value),
+      superstar:!Number.isInteger(superstar.value)
+    }
   };
+
+  if(Number.isInteger(draw.jolly) && draw.numbers.includes(draw.jolly)){
+    return {
+      ok:false,
+      error:'Il Jolly letto coincide con uno dei 6 numeri: il testo sembra essere stato interpretato male.',
+      raw:text
+    };
+  }
+
+  return {ok:true,draw,raw:text};
 }
 
 function V48_showDetected(draw){
@@ -4628,11 +4644,21 @@ function V48_showDetected(draw){
   const extras=byId('drawDetectedExtras');
   if(!box||!meta||!nums||!extras) return;
 
-  meta.textContent='Concorso '+draw.contest+' · '+draw.date;
+  const inferred=draw.inferred||{};
+  meta.innerHTML=
+    'Concorso '+draw.contest+(inferred.contest?' <span class="tag">automatico</span>':'')+
+    ' · '+draw.date+(inferred.date?' <span class="tag">automatico</span>':'');
+
   nums.innerHTML=draw.numbers.map(n=>'<span class="ball draw compact">'+n+'</span>').join('');
-  extras.innerHTML='Jolly: <strong>'+draw.jolly+'</strong> &nbsp; · &nbsp; SuperStar: <strong>'+draw.superstar+'</strong>';
+
+  const jText=Number.isInteger(draw.jolly)?String(draw.jolly):'non presente';
+  const sText=Number.isInteger(draw.superstar)?String(draw.superstar):'non presente';
+  extras.innerHTML=
+    'Jolly: <strong>'+jText+'</strong>'+
+    ' &nbsp; · &nbsp; SuperStar: <strong>'+sText+'</strong>';
+
   box.style.display='block';
-  msg('msgDraw','Controlla il risultato rilevato e premi Conferma e salva.',false);
+  msg('msgDraw','Risultato letto. Controlla i 6 numeri e premi Conferma e salva.',false);
 }
 
 function V48_clearDetected(){
@@ -4721,24 +4747,29 @@ function V48_commitDetected(){
   const d=V48_pendingDraw;
   if(!d) return msg('msgDraw','Prima importa o analizza un’estrazione.',true);
 
-  const contest=String(d.contest);
+  if(!validSix(d.numbers||[])){
+    return msg('msgDraw','La combinazione rilevata non contiene 6 numeri validi.',true);
+  }
+
+  const contest=String(d.contest || nextContest());
+  const date=String(d.date || V48_localTodayISO());
+
   const existingIndex=(state.draws||[]).findIndex(x=>String(x.contest)===contest);
   const oldPrizes=existingIndex>=0 ? state.draws[existingIndex].prizes : null;
 
   const rec=ensureDrawPrizes({
     contest,
-    date:d.date,
+    date,
     numbers:sortNums(d.numbers),
-    jolly:d.jolly,
-    superstar:d.superstar,
-    origin:d.origin||'import-auto-v48',
+    jolly:Number.isInteger(d.jolly)?d.jolly:null,
+    superstar:Number.isInteger(d.superstar)?d.superstar:null,
+    origin:d.origin||'import-auto-v49',
     prizes:oldPrizes||emptyPrizes()
   });
 
   if(existingIndex>=0) state.draws[existingIndex]=rec;
   else state.draws.push(rec);
 
-  // Ordina per data; a parità usa il numero di concorso.
   state.draws.sort((a,b)=>{
     const da=String(a.date||''), db=String(b.date||'');
     if(da!==db) return db.localeCompare(da);
@@ -4750,7 +4781,6 @@ function V48_commitDetected(){
   state.playDate='';
   state.latestCheckedContest=contest;
 
-  // Apprendimento v46 è idempotente: lo stesso record non viene contato due volte.
   try{
     ensureLearningState?.();
     AI_learn_draw?.(rec);
@@ -4762,7 +4792,13 @@ function V48_commitDetected(){
 
   byId('drawPasteText').value='';
   V48_clearDetected();
-  msg('msgDraw','Concorso '+contest+' importato e salvato automaticamente.',false);
+
+  const extraNote =
+    (!Number.isInteger(rec.jolly) || !Number.isInteger(rec.superstar))
+      ? ' I dati non presenti nel testo sono stati lasciati vuoti.'
+      : '';
+
+  msg('msgDraw','Concorso '+contest+' importato e salvato automaticamente.'+extraNote,false);
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
