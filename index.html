@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v49 — Autopilot</title>
+  <title>Super6plus v50 — Auto Sync</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,7 +199,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v49 — Autopilot</h1>
+  <h1>Super6plus v50 — Auto Sync</h1>
   <p class="muted">Super6plus analizza automaticamente lo storico, verifica internamente i modelli e produce direttamente le sestine finali. Nessun parametro statistico da configurare e nessun test da eseguire manualmente.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
@@ -232,43 +232,35 @@
     </div>
 
     <div class="card">
-      <h2>Importa nuova estrazione</h2>
+      <h2>Aggiornamento automatico estrazioni</h2>
       <p class="muted small">
-        Niente inserimento manuale. Copia il risultato dal sito SuperEnalotto e incollalo qui,
-        oppure carica uno screenshot. Bastano anche solo la combinazione vincente e il Jolly:
-        se concorso o data non sono presenti, Super6plus li completa automaticamente.
+        Super6plus controlla automaticamente il file aggiornato dal sito ufficiale SuperEnalotto.
+        Quando trova una nuova estrazione la aggiunge allo storico senza inserimento manuale.
       </p>
 
-      <div class="row" style="margin-top:10px">
-        <button class="btn-blue" id="btnDrawClipboard">Incolla dagli appunti</button>
-        <button class="btn-grey" id="btnAnalyzeDrawText">Analizza testo</button>
+      <div class="item" style="margin-top:12px;background:#081730;border:1px solid #355785">
+        <div class="small muted">Fonte</div>
+        <div style="font-weight:800;margin-top:4px">superenalotto.it — Archivio estrazioni ufficiale</div>
+        <div id="officialSyncStatus" class="small muted" style="margin-top:8px">Controllo in corso…</div>
       </div>
 
-      <textarea id="drawPasteText" rows="7" style="margin-top:10px"
-        placeholder="Incolla qui il testo copiato dalla pagina dell'estrazione..."></textarea>
-
-      <div class="sep"></div>
-
-      <div class="muted small">Oppure carica uno screenshot / immagine del risultato</div>
-      <input id="drawImageFile" type="file" accept="image/*" style="margin-top:8px">
-      <div id="drawOcrProgress" class="small muted" style="margin-top:8px"></div>
-      <img id="drawImagePreview" alt="" style="display:none;max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;border:1px solid #29446f">
-
-      <div id="drawDetectedBox" class="item" style="display:none;margin-top:12px;background:#081730;border:1px solid #355785">
-        <div class="small muted">Estrazione rilevata</div>
-        <div id="drawDetectedMeta" style="font-weight:800;margin-top:5px"></div>
-        <div id="drawDetectedNums" class="nums-hitline compact"></div>
-        <div id="drawDetectedExtras" class="small" style="margin-top:8px"></div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn-green" id="btnConfirmDetectedDraw">Conferma e salva</button>
-          <button class="btn-grey" id="btnClearDetectedDraw">Annulla</button>
-        </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn-blue" id="btnOfficialSyncNow">Controlla adesso</button>
       </div>
-
       <div class="msg" id="msgDraw"></div>
 
-      <!-- Campi legacy nascosti: servono solo per compatibilità con il resto dell'app. -->
+      <!-- Elementi legacy nascosti: preservano compatibilità con il codice precedente. -->
       <div style="display:none" aria-hidden="true">
+        <textarea id="drawPasteText"></textarea>
+        <input id="drawImageFile" type="file">
+        <div id="drawOcrProgress"></div>
+        <img id="drawImagePreview" alt="">
+        <div id="drawDetectedBox"><div id="drawDetectedMeta"></div><div id="drawDetectedNums"></div><div id="drawDetectedExtras"></div></div>
+        <button id="btnDrawClipboard" type="button"></button>
+        <button id="btnAnalyzeDrawText" type="button"></button>
+        <button id="btnConfirmDetectedDraw" type="button"></button>
+        <button id="btnClearDetectedDraw" type="button"></button>
+
         <input id="drawContest">
         <input id="drawDate" type="date">
         <input id="drawJolly">
@@ -281,7 +273,6 @@
     </div>
   </div>
 
-  
   <div class="card" style="margin-top:16px">
     <h2>Sestine pronte da giocare</h2>
     <p class="muted small">Scegli solo quante sestine vuoi. Super6plus esegue automaticamente in background analisi, confronto dei modelli e selezione finale.</p>
@@ -4823,6 +4814,161 @@ window.addEventListener('DOMContentLoaded',()=>{
       },50);
     });
   }
+});
+
+
+
+/* =========================================================
+   SUPER6PLUS v50 - AUTO SYNC UFFICIALE
+   Il browser legge un JSON locale al repository.
+   Un GitHub Action aggiorna quel JSON dal sito ufficiale.
+   ========================================================= */
+
+const V50_OFFICIAL_FEED = './data/draws-auto.json';
+let V50_syncRunning = false;
+
+function V50_setStatus(text, isErr=false){
+  const el=byId('officialSyncStatus');
+  if(!el) return;
+  el.textContent=text||'';
+  el.className='small '+(isErr?'err':'muted');
+}
+
+function V50_sameNumbers(a,b){
+  return keyOf(a||[])===keyOf(b||[]);
+}
+
+function V50_maxInternalContest(){
+  return (state.draws||[]).reduce((m,d)=>Math.max(m,Number(d.contest)||0),0);
+}
+
+function V50_mergeOfficialDraws(remoteDraws){
+  const rows=(remoteDraws||[])
+    .filter(d=>d && d.date && validSix((d.numbers||[]).map(Number)))
+    .map(d=>({
+      officialContest:String(d.contest||''),
+      date:String(d.date),
+      numbers:sortNums((d.numbers||[]).map(Number)),
+      jolly:Number.isInteger(Number(d.jolly)) ? Number(d.jolly) : null,
+      superstar:Number.isInteger(Number(d.superstar)) ? Number(d.superstar) : null
+    }))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(!rows.length) return {added:0,updated:0,latest:null};
+
+  let maxInternal=V50_maxInternalContest();
+  let added=0, updated=0, latest=null;
+
+  rows.forEach(r=>{
+    let local=(state.draws||[]).find(d=>String(d.date||'')===r.date);
+
+    if(local){
+      const changed=
+        !V50_sameNumbers(local.numbers,r.numbers) ||
+        Number(local.jolly)!==Number(r.jolly) ||
+        Number(local.superstar)!==Number(r.superstar) ||
+        String(local.officialContest||'')!==r.officialContest;
+
+      local.numbers=[...r.numbers];
+      local.jolly=r.jolly;
+      local.superstar=r.superstar;
+      local.officialContest=r.officialContest;
+      local.origin='official-auto-sync';
+      ensureDrawPrizes(local);
+      if(changed) updated++;
+    }else{
+      maxInternal++;
+      local=ensureDrawPrizes({
+        contest:String(maxInternal),          // ID interno storico, compatibile con il tuo archivio esistente
+        officialContest:r.officialContest,   // numero ufficiale del concorso dell'anno
+        date:r.date,
+        numbers:[...r.numbers],
+        jolly:r.jolly,
+        superstar:r.superstar,
+        origin:'official-auto-sync',
+        prizes:emptyPrizes()
+      });
+      state.draws.push(local);
+      added++;
+    }
+    if(!latest || r.date>latest.date) latest=r;
+  });
+
+  state.draws.sort((a,b)=>{
+    const da=String(a.date||''), db=String(b.date||'');
+    if(da!==db) return db.localeCompare(da);
+    return (Number(b.contest)||0)-(Number(a.contest)||0);
+  });
+
+  if(added>0 || updated>0){
+    state.generated=[];
+    state.playContest=nextContest();
+    state.playDate='';
+    state.v47AutoValidation=null; // lo storico è cambiato: l'Autopilot rivaliderà internamente
+    state.lastOfficialSync=new Date().toISOString();
+    saveState();
+    render();
+  }
+
+  return {added,updated,latest};
+}
+
+async function V50_syncOfficial(silent=false){
+  if(V50_syncRunning) return;
+  V50_syncRunning=true;
+  const btn=byId('btnOfficialSyncNow');
+  if(btn){ btn.disabled=true; btn.textContent='Controllo…'; }
+
+  try{
+    if(!silent) V50_setStatus('Controllo archivio ufficiale…');
+    const url=V50_OFFICIAL_FEED+'?t='+Date.now();
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error('feed HTTP '+res.status);
+
+    const data=await res.json();
+    if(!data || !Array.isArray(data.draws)) throw new Error('feed non valido');
+
+    const result=V50_mergeOfficialDraws(data.draws);
+    const upd=data.updatedAt ? new Date(data.updatedAt).toLocaleString('it-IT') : '—';
+
+    if(result.added>0){
+      const x=result.latest;
+      V50_setStatus(
+        'Nuova estrazione acquisita automaticamente: '+
+        (x?.officialContest ? 'concorso ufficiale '+x.officialContest+' · ' : '')+
+        (x?.date||'')+
+        '. Feed aggiornato: '+upd
+      );
+      msg('msgDraw','Aggiunte '+result.added+' nuove estrazioni allo storico.',false);
+    }else if(result.updated>0){
+      V50_setStatus('Archivio sincronizzato. Aggiornati '+result.updated+' record · '+upd);
+      msg('msgDraw','Archivio ufficiale sincronizzato.',false);
+    }else{
+      V50_setStatus('Aggiornato: nessuna nuova estrazione · ultimo controllo feed '+upd);
+      if(!silent) msg('msgDraw','Nessuna nuova estrazione da aggiungere.',false);
+    }
+  }catch(e){
+    console.warn('V50 auto sync:',e);
+    V50_setStatus(
+      'Aggiornamento automatico non disponibile. Verifica che data/draws-auto.json e il workflow GitHub siano installati.',
+      true
+    );
+    if(!silent) msg('msgDraw','Impossibile leggere il feed automatico: '+(e.message||e),true);
+  }finally{
+    V50_syncRunning=false;
+    if(btn){ btn.disabled=false; btn.textContent='Controlla adesso'; }
+  }
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const b=byId('btnOfficialSyncNow');
+  if(b) b.onclick=()=>V50_syncOfficial(false);
+
+  // Controllo automatico all'apertura.
+  setTimeout(()=>V50_syncOfficial(true),1200);
+
+  // Se la pagina resta aperta, ricontrolla ogni 10 minuti.
+  setInterval(()=>V50_syncOfficial(true),10*60*1000);
 });
 
 </script>
