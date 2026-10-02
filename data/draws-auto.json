@@ -1,5 +1,426 @@
 {
   "source": "https://www.superenalotto.it/archivio-estrazioni",
-  "updatedAt": null,
-  "draws": []
+  "updatedAt": "2026-10-02T20:51:40.800434+00:00",
+  "draws": [
+    {
+      "contest": "158",
+      "date": "2026-10-02",
+      "numbers": [
+        2,
+        31,
+        55,
+        56,
+        73,
+        84
+      ],
+      "jolly": 77,
+      "superstar": 41
+    },
+    {
+      "contest": "157",
+      "date": "2026-10-01",
+      "numbers": [
+        5,
+        12,
+        28,
+        41,
+        56,
+        66
+      ],
+      "jolly": 73,
+      "superstar": 42
+    },
+    {
+      "contest": "156",
+      "date": "2026-09-29",
+      "numbers": [
+        16,
+        26,
+        28,
+        30,
+        43,
+        72
+      ],
+      "jolly": 5,
+      "superstar": 32
+    },
+    {
+      "contest": "155",
+      "date": "2026-09-26",
+      "numbers": [
+        52,
+        54,
+        55,
+        64,
+        68,
+        78
+      ],
+      "jolly": 31,
+      "superstar": 6
+    },
+    {
+      "contest": "154",
+      "date": "2026-09-25",
+      "numbers": [
+        10,
+        18,
+        26,
+        33,
+        39,
+        45
+      ],
+      "jolly": 89,
+      "superstar": 48
+    },
+    {
+      "contest": "153",
+      "date": "2026-09-24",
+      "numbers": [
+        1,
+        28,
+        31,
+        50,
+        63,
+        85
+      ],
+      "jolly": 86,
+      "superstar": 48
+    },
+    {
+      "contest": "152",
+      "date": "2026-09-22",
+      "numbers": [
+        12,
+        42,
+        57,
+        65,
+        76,
+        77
+      ],
+      "jolly": 21,
+      "superstar": 54
+    },
+    {
+      "contest": "151",
+      "date": "2026-09-19",
+      "numbers": [
+        20,
+        42,
+        45,
+        48,
+        68,
+        85
+      ],
+      "jolly": 49,
+      "superstar": 41
+    },
+    {
+      "contest": "150",
+      "date": "2026-09-18",
+      "numbers": [
+        29,
+        37,
+        41,
+        43,
+        74,
+        86
+      ],
+      "jolly": 25,
+      "superstar": 78
+    },
+    {
+      "contest": "149",
+      "date": "2026-09-17",
+      "numbers": [
+        6,
+        7,
+        16,
+        35,
+        46,
+        54
+      ],
+      "jolly": 21,
+      "superstar": 51
+    },
+    {
+      "contest": "148",
+      "date": "2026-09-15",
+      "numbers": [
+        3,
+        12,
+        18,
+        32,
+        47,
+        54
+      ],
+      "jolly": 69,
+      "superstar": 28
+    },
+    {
+      "contest": "147",
+      "date": "2026-09-12",
+      "numbers": [
+        3,
+        7,
+        14,
+        40,
+        78,
+        81
+      ],
+      "jolly": 1,
+      "superstar": 54
+    },
+    {
+      "contest": "146",
+      "date": "2026-09-11",
+      "numbers": [
+        8,
+        13,
+        16,
+        52,
+        64,
+        70
+      ],
+      "jolly": 17,
+      "superstar": 21
+    },
+    {
+      "contest": "145",
+      "date": "2026-09-10",
+      "numbers": [
+        2,
+        17,
+        39,
+        59,
+        63,
+        89
+      ],
+      "jolly": 62,
+      "superstar": 62
+    },
+    {
+      "contest": "144",
+      "date": "2026-09-08",
+      "numbers": [
+        23,
+        26,
+        41,
+        52,
+        59,
+        85
+      ],
+      "jolly": 49,
+      "superstar": 47
+    },
+    {
+      "contest": "143",
+      "date": "2026-09-05",
+      "numbers": [
+        12,
+        24,
+        28,
+        32,
+        37,
+        78
+      ],
+      "jolly": 40,
+      "superstar": 16
+    },
+    {
+      "contest": "142",
+      "date": "2026-09-04",
+      "numbers": [
+        8,
+        44,
+        60,
+        73,
+        86,
+        89
+      ],
+      "jolly": 57,
+      "superstar": 42
+    },
+    {
+      "contest": "141",
+      "date": "2026-09-03",
+      "numbers": [
+        8,
+        11,
+        15,
+        60,
+        68,
+        76
+      ],
+      "jolly": 9,
+      "superstar": 90
+    },
+    {
+      "contest": "140",
+      "date": "2026-09-01",
+      "numbers": [
+        42,
+        47,
+        59,
+        64,
+        67,
+        71
+      ],
+      "jolly": 88,
+      "superstar": 75
+    },
+    {
+      "contest": "139",
+      "date": "2026-08-29",
+      "numbers": [
+        12,
+        17,
+        45,
+        59,
+        74,
+        77
+      ],
+      "jolly": 62,
+      "superstar": 62
+    },
+    {
+      "contest": "138",
+      "date": "2026-08-28",
+      "numbers": [
+        4,
+        8,
+        27,
+        62,
+        70,
+        79
+      ],
+      "jolly": 60,
+      "superstar": 55
+    },
+    {
+      "contest": "137",
+      "date": "2026-08-27",
+      "numbers": [
+        2,
+        27,
+        28,
+        50,
+        75,
+        84
+      ],
+      "jolly": 32,
+      "superstar": 40
+    },
+    {
+      "contest": "136",
+      "date": "2026-08-25",
+      "numbers": [
+        15,
+        36,
+        62,
+        67,
+        69,
+        70
+      ],
+      "jolly": 32,
+      "superstar": 15
+    },
+    {
+      "contest": "135",
+      "date": "2026-08-22",
+      "numbers": [
+        2,
+        16,
+        23,
+        31,
+        72,
+        85
+      ],
+      "jolly": 82,
+      "superstar": 14
+    },
+    {
+      "contest": "134",
+      "date": "2026-08-21",
+      "numbers": [
+        12,
+        25,
+        27,
+        28,
+        39,
+        57
+      ],
+      "jolly": 42,
+      "superstar": 13
+    },
+    {
+      "contest": "133",
+      "date": "2026-08-20",
+      "numbers": [
+        14,
+        18,
+        26,
+        51,
+        64,
+        71
+      ],
+      "jolly": 77,
+      "superstar": 49
+    },
+    {
+      "contest": "132",
+      "date": "2026-08-18",
+      "numbers": [
+        10,
+        16,
+        24,
+        25,
+        39,
+        66
+      ],
+      "jolly": 70,
+      "superstar": 6
+    },
+    {
+      "contest": "131",
+      "date": "2026-08-17",
+      "numbers": [
+        18,
+        24,
+        69,
+        71,
+        73,
+        82
+      ],
+      "jolly": 29,
+      "superstar": 41
+    },
+    {
+      "contest": "130",
+      "date": "2026-08-14",
+      "numbers": [
+        9,
+        18,
+        20,
+        25,
+        53,
+        90
+      ],
+      "jolly": 49,
+      "superstar": 23
+    },
+    {
+      "contest": "129",
+      "date": "2026-08-13",
+      "numbers": [
+        2,
+        7,
+        16,
+        29,
+        57,
+        84
+      ],
+      "jolly": 18,
+      "superstar": 1
+    }
+  ]
 }
