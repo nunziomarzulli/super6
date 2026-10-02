@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v45 Ranking Sestine</title>
+  <title>Super6plus v46 — Ranking + Walk-Forward</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,8 +199,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v45 Ranking Sestine</h1>
-  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v45: motore di abbinamento numeri. Le sestine vengono generate, valutate come gruppo e ordinate con ranking su ambi, terni, numeri caldi, mancanti del mese e struttura.</p>
+  <h1>Super6plus v46 — Ranking + Walk-Forward</h1>
+  <p class="muted">Storico, giocate, analisi e area sistemi in stile Sisal. Versione v46: mantiene il motore di ranking v45, ma aggiunge un laboratorio walk-forward fuori campione. Le euristiche non vengono considerate "vantaggio" finché non superano una baseline casuale su dati che il modello non ha visto.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
     <h2>Salvataggio e sincronizzazione</h2>
@@ -342,6 +342,33 @@
     <div class="card" style="background:#081730;border-color:#27426d">
       <h3>Report Motore</h3>
       <div id="absoluteReport" class="list"></div>
+    </div>
+  </div>
+
+
+  <div class="card" id="v46Lab" style="margin-top:16px;border-color:#67c0ff">
+    <h2>Laboratorio v46 — Walk-forward fuori campione</h2>
+    <p class="muted small">Ogni concorso viene simulato usando solo le estrazioni precedenti. Confronta Random puro, frequenze shrinkate, frequenze+coppie shrinkate e un V45-Core congelato. La baseline casuale usa Monte Carlo con seed deterministico.</p>
+    <div class="row" style="margin-top:12px">
+      <div><div class="muted small">Training minimo</div><input id="v46MinTrain" type="number" min="30" max="1000" value="180"></div>
+      <div><div class="muted small">Concorsi test</div><select id="v46TestWindow"><option value="60">60</option><option value="120" selected>120</option><option value="240">240</option><option value="500">500</option><option value="all">Tutti disponibili</option></select></div>
+      <div><div class="muted small">Righe per concorso</div><input id="v46Lines" type="number" min="1" max="20" value="5"></div>
+      <div><div class="muted small">Repliche Monte Carlo</div><input id="v46Mc" type="number" min="30" max="500" value="120"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-blue" id="btnV46Backtest">Esegui walk-forward</button>
+      <button class="btn-grey" id="btnV46Export">Esporta report CSV</button>
+    </div>
+    <div class="msg" id="v46Msg"></div>
+    <div class="table-wrap" style="overflow:auto;margin-top:12px">
+      <table class="pattern-table">
+        <thead><tr><th>Strategia</th><th>Linee</th><th>≥2</th><th>≥3</th><th>≥4</th><th>Ambi</th><th>Terni</th><th>Quaterne</th><th>Media hit</th><th>Z vs random</th><th>Blocchi</th><th>Esito</th></tr></thead>
+        <tbody id="v46Results"><tr><td colspan="12" class="muted">Esegui il backtest per misurare il motore.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="item" style="margin-top:12px;background:#081730;border:1px solid #29446f">
+      <strong>Regola v46</strong>
+      <div class="small" style="margin-top:6px">Una strategia viene indicata come “segnale da approfondire” solo con Z ≥ 2 sul numero di linee con almeno 2 colpi e vantaggio in almeno 3 blocchi cronologici su 4. Non significa capacità di prevedere il 6: serve soltanto a evitare di promuovere euristiche che non battono il caso nel test.</div>
     </div>
   </div>
 
@@ -665,7 +692,9 @@ function emptyState(){
       monthlyMemory:{},
       antiBias:{},
       historyDepth:0,
-      lastUpdate:null
+      lastUpdate:null,
+      processedDraws:{},
+      processedPlays:{}
     }
   };
 }
@@ -767,12 +796,9 @@ function byId(id){ return document.getElementById(id); }
 
 function randomInt90(){ return 1+Math.floor(Math.random()*90); }
 function buildAutoExtras(numbers){
-  const baseSet=new Set((numbers||[]).map(Number).filter(Number.isInteger));
-  const available=[];
-  for(let n=1;n<=90;n++) if(!baseSet.has(n)) available.push(n);
-  const jolly = available.length ? available[Math.floor(Math.random()*available.length)] : randomInt90();
-  const superstar = randomInt90();
-  return {jolly, superstar};
+  // v46: il Jolly appartiene all'estrazione e non viene scelto dal giocatore.
+  // Anche il SuperStar è opzionale: il motore non ne inventa uno automaticamente.
+  return {jolly:null, superstar:null};
 }
 function ensurePlayExtras(play){
   if(!play) return play;
@@ -824,6 +850,7 @@ function renderExtraBalls(play, draw, compact=false){
   const baseS='ball superstar'+(compact?' compact':'');
   const jCls = baseJ + ((drawRef && Number(play?.jolly)===Number(drawRef.jolly)) ? ' hit' : '');
   const sCls = baseS + ((drawRef && Number(play?.superstar)===Number(drawRef.superstar)) ? ' hit' : '');
+  if(play?.jolly==null && play?.superstar==null) return '<div class="small muted" style="margin-top:7px">Jolly: estratto dal gioco · SuperStar: non selezionato automaticamente</div>';
   return '<div class="inline-extra"><span class="mini-extra-label">J</span><span class="'+jCls+'">'+(play?.jolly ?? '-')+'</span><span class="mini-extra-label">S</span><span class="'+sCls+'">'+(play?.superstar ?? '-')+'</span></div>';
 }
 function sortNums(nums){ return [...nums].sort((a,b)=>a-b); }
@@ -833,26 +860,67 @@ function numsFromInputs(selector){
   return [...document.querySelectorAll(selector)].map(i=>parseInt(i.value,10)).filter(n=>Number.isInteger(n)&&n>=1&&n<=90);
 }
 function parseTxtLine(line){
-  const parts=line.trim().split(/\s+/).filter(Boolean);
-  if(parts.length<9) return null;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) return null;
-  const nums=parts.slice(1,7).map(Number);
-  const j=Number(parts[7]); const s=Number(parts[8]);
-  if(!validSix(nums)) return null;
-  if(!(Number.isInteger(j)&&j>=1&&j<=90)) return null;
-  if(!(Number.isInteger(s)&&s>=1&&s<=90)) return null;
-  return {date:parts[0],numbers:sortNums(nums),jolly:j,superstar:s};
+  const raw=line.trim();
+  if(!raw || raw.startsWith('#')) return null;
+  const parts=raw.split(/[\s,;]+/).filter(Boolean);
+
+  // Formato v46 consigliato:
+  // anno concorso data n1 n2 n3 n4 n5 n6 jolly superstar
+  if(parts.length>=11 && /^\d{4}$/.test(parts[0]) && /^\d+$/.test(parts[1]) && /^\d{4}-\d{2}-\d{2}$/.test(parts[2])){
+    const year=Number(parts[0]);
+    const contest=String(parts[1]);
+    const nums=parts.slice(3,9).map(Number);
+    const j=Number(parts[9]);
+    const ss=Number(parts[10]);
+    if(!validSix(nums)) return null;
+    if(!(Number.isInteger(j)&&j>=1&&j<=90)) return null;
+    if(!(Number.isInteger(ss)&&ss>=1&&ss<=90)) return null;
+    return {year,contest,date:parts[2],numbers:sortNums(nums),jolly:j,superstar:ss,contestSynthetic:false};
+  }
+
+  // Formato storico legacy: data + 6 numeri + Jolly + SuperStar.
+  // Non contiene il numero ufficiale del concorso: v46 lo marca come sintetico
+  // invece di farlo passare per un ID ufficiale.
+  if(parts.length>=9 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])){
+    const nums=parts.slice(1,7).map(Number);
+    const j=Number(parts[7]);
+    const ss=Number(parts[8]);
+    if(!validSix(nums)) return null;
+    if(!(Number.isInteger(j)&&j>=1&&j<=90)) return null;
+    if(!(Number.isInteger(ss)&&ss>=1&&ss<=90)) return null;
+    return {year:Number(parts[0].slice(0,4)),contest:'',date:parts[0],numbers:sortNums(nums),jolly:j,superstar:ss,contestSynthetic:true};
+  }
+  return null;
 }
 function importTxt(text){
-  const rows=[]; const lines=text.split(/\r?\n/);
+  const rows=[];
+  const lines=text.split(/\r?\n/);
   for(const line of lines){ const p=parseTxtLine(line); if(p) rows.push(p); }
+  if(!rows.length){ msg('msgImport','Nessuna riga valida trovata.',true); return; }
   rows.sort((a,b)=>a.date===b.date?0:(a.date>b.date?-1:1));
+
+  // Manteniamo un ID interno per compatibilità con l'app, ma se il file non
+  // contiene il concorso ufficiale lo segnaliamo chiaramente con contestSynthetic.
   const total=rows.length;
-  state.draws=rows.map((r,idx)=>({contest:String(total-idx), date:r.date, numbers:r.numbers, jolly:r.jolly, superstar:r.superstar, origin:'TXT'}));
+  state.draws=rows.map((r,idx)=>({
+    year:r.year || Number((r.date||'').slice(0,4)) || null,
+    contest:r.contest || String(total-idx),
+    contestSynthetic:!!r.contestSynthetic,
+    date:r.date,
+    numbers:r.numbers,
+    jolly:r.jolly,
+    superstar:r.superstar,
+    origin:r.contestSynthetic?'TXT legacy (ID interno)':'TXT ufficiale'
+  }));
   state.generated=[]; state.currentSystem=null;
   state.draws.forEach(ensureDrawPrizes);
-  if(state.draws.length){ state.playContest=String(Number(state.draws[0].contest)+1); state.playDate=''; }
-  saveState(); render(); msg('msgImport','Storico importato e salvato: '+rows.length+' estrazioni.');
+  const official=state.draws.filter(d=>!d.contestSynthetic && /^\d+$/.test(String(d.contest||'')));
+  if(official.length){ state.playContest=String(Math.max(...official.map(d=>Number(d.contest)))+1); }
+  else state.playContest='';
+  state.playDate='';
+  saveState(); render();
+  const synthetic=state.draws.filter(d=>d.contestSynthetic).length;
+  msg('msgImport','Storico importato e salvato: '+rows.length+' estrazioni.'+(synthetic?' '+synthetic+' righe legacy hanno un ID interno, non un numero concorso ufficiale.':''));
 }
 function exportJson(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -3260,6 +3328,8 @@ function ensureLearningState(){
   if(!state.learning.antiBias) state.learning.antiBias = {};
   if(typeof state.learning.historyDepth !== 'number') state.learning.historyDepth = 0;
   if(!('lastUpdate' in state.learning)) state.learning.lastUpdate = null;
+  if(!state.learning.processedDraws || typeof state.learning.processedDraws!=='object') state.learning.processedDraws = {};
+  if(!state.learning.processedPlays || typeof state.learning.processedPlays!=='object') state.learning.processedPlays = {};
 }
 ensureLearningState();
 
@@ -3270,6 +3340,9 @@ function AI_learn_draw(draw){
   const L = state.learning;
   const nums = draw.numbers.slice().filter(Number.isInteger);
   const month = (draw.date || '').slice(0,7) || 'unknown';
+  const drawKey = (draw.date||'')+'|'+keyOf(nums);
+  if(L.processedDraws[drawKey]) return; // v46: apprendimento idempotente
+  L.processedDraws[drawKey]=Date.now();
 
   if(!L.monthlyMemory[month]) L.monthlyMemory[month] = {count:0, numbers:{}};
 
@@ -3309,33 +3382,25 @@ function AI_learn_draw(draw){
 
 function AI_learn_played(){
   ensureLearningState();
-
   const L = state.learning;
   const drawMap = new Map((state.draws||[]).map(d=>[String(d.contest), d]));
 
   (state.played||[]).forEach(p=>{
     const draw = drawMap.get(String(p.contest));
     if(!draw || !Array.isArray(p.numbers) || !Array.isArray(draw.numbers)) return;
+    const playKey = String(p.contest)+'|'+keyOf(p.numbers)+'|'+(draw.date||'')+'|'+keyOf(draw.numbers);
+    if(L.processedPlays[playKey]) return; // v46: una giocata chiusa si apprende una sola volta
+    L.processedPlays[playKey]=Date.now();
 
     const hits = p.numbers.filter(n=>draw.numbers.includes(n));
-
     if(hits.length >= 2){
-      hits.forEach(n=>{
-        L.nearMissScore[n] = (L.nearMissScore[n] || 0) + 1.3;
-      });
+      hits.forEach(n=>{ L.nearMissScore[n] = (L.nearMissScore[n] || 0) + 1.3; });
     }
-
     if(hits.length === 0){
-      p.numbers.forEach(n=>{
-        L.numberScore[n] = (L.numberScore[n] || 0) - 0.18;
-      });
+      p.numbers.forEach(n=>{ L.numberScore[n] = (L.numberScore[n] || 0) - 0.18; });
     }
-
-    p.numbers.forEach(n=>{
-      L.antiBias[n] = (L.antiBias[n] || 0) + 1;
-    });
+    p.numbers.forEach(n=>{ L.antiBias[n] = (L.antiBias[n] || 0) + 1; });
   });
-
   L.lastUpdate = Date.now();
 }
 
@@ -4005,6 +4070,256 @@ generate = async function(){
     if(btn){ btn.disabled=false; btn.textContent='Genera sestine'; }
   }
 };
+
+
+/* =========================================================
+   SUPER6PLUS v46 - WALK-FORWARD LAB (PURE / NO LOOK-AHEAD)
+   ========================================================= */
+const V46_STRATEGIES = [
+  {id:'random',label:'Random puro'},
+  {id:'freq',label:'Frequenze shrinkate'},
+  {id:'pair',label:'Frequenze + coppie shrinkate'},
+  {id:'v45core',label:'V45-Core congelato'}
+];
+let V46_LAST_REPORT = null;
+
+function V46_hash(str){
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+function V46_rng(seed){
+  let a=seed>>>0;
+  return function(){
+    a=(a+0x6D2B79F5)>>>0;
+    let t=a;
+    t=Math.imul(t^(t>>>15),t|1);
+    t^=t+Math.imul(t^(t>>>7),t|61);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+function V46_randomCombo(rng){
+  const set=new Set();
+  while(set.size<6) set.add(1+Math.floor(rng()*90));
+  return sortNums([...set]);
+}
+function V46_chooseWeighted(weights,rng,used){
+  let total=0; const rows=[];
+  for(let n=1;n<=90;n++){
+    if(used.has(n)) continue;
+    const w=Math.max(1e-9,Number(weights[n])||1e-9);
+    rows.push([n,w]); total+=w;
+  }
+  let r=rng()*total;
+  for(const [n,w] of rows){ r-=w; if(r<=0) return n; }
+  return rows.length?rows[rows.length-1][0]:null;
+}
+function V46_weightedCombo(baseWeights,pairWeights,rng,mode){
+  const used=new Set(), out=[];
+  while(out.length<6){
+    const conditional=Array(91).fill(0);
+    for(let n=1;n<=90;n++){
+      if(used.has(n)) continue;
+      let w=Math.max(1e-6,baseWeights[n]||1);
+      if(mode!=='freq' && out.length){
+        let pairFactor=0;
+        out.forEach(x=>{ pairFactor += pairWeights.get(V45_pairKey(x,n))||1; });
+        pairFactor/=out.length;
+        w*=Math.pow(Math.max(0.25,pairFactor),0.55);
+      }
+      conditional[n]=w;
+    }
+    const n=V46_chooseWeighted(conditional,rng,used);
+    if(n===null) break;
+    used.add(n); out.push(n);
+  }
+  return sortNums(out);
+}
+function V46_trainModel(past){
+  const N=Math.max(1,past.length);
+  const counts=Array(91).fill(0);
+  const pairs=new Map();
+  past.forEach(d=>{
+    const nums=sortNums(d.numbers||[]);
+    nums.forEach(n=>{ if(n>=1&&n<=90) counts[n]++; });
+    for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++){
+      const k=V45_pairKey(nums[i],nums[j]); pairs.set(k,(pairs.get(k)||0)+1);
+    }
+  });
+
+  // Empirical-Bayes style shrinkage toward the theoretical uniform rate.
+  const priorDraws=60;
+  const pNum=6/90;
+  const numW=Array(91).fill(1);
+  for(let n=1;n<=90;n++){
+    const post=(counts[n]+priorDraws*pNum)/(N+priorDraws);
+    numW[n]=Math.max(0.35,Math.min(2.5,post/pNum));
+  }
+
+  const pPair=(6/90)*(5/89); // probability a specific pair is present in one draw
+  const pairPrior=180;
+  const pairW=new Map();
+  for(let a=1;a<=90;a++) for(let b=a+1;b<=90;b++){
+    const k=a+'-'+b;
+    const c=pairs.get(k)||0;
+    const post=(c+pairPrior*pPair)/(N+pairPrior);
+    pairW.set(k,Math.max(0.45,Math.min(3.0,post/pPair)));
+  }
+  return {N,counts,pairs,numW,pairW};
+}
+function V46_structuralScore(nums,model,past){
+  const sum=nums.reduce((a,b)=>a+b,0);
+  const even=nums.filter(n=>n%2===0).length;
+  const decs=diffDecs(nums);
+  let sc=0;
+  nums.forEach(n=>{ sc += Math.log(model.numW[n]||1); });
+  for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++) sc += 0.32*Math.log(model.pairW.get(V45_pairKey(nums[i],nums[j]))||1);
+  // Soft, not hard, versions of a subset of v45 structure rules.
+  sc += ([2,3,4].includes(even)?0.35:-0.45);
+  sc += (sum>=120&&sum<=270?0.35:-0.25);
+  sc += (decs>=4?0.25:-0.25);
+  sc += (maxConsec(nums)<=2?0.18:-0.18);
+  return sc;
+}
+function V46_generate(strategy,past,lines,seed){
+  const rng=V46_rng(seed);
+  const model=V46_trainModel(past);
+  const out=[],seen=new Set();
+  let tries=0;
+  while(out.length<lines && tries<lines*700){
+    let nums;
+    if(strategy==='random') nums=V46_randomCombo(rng);
+    else if(strategy==='freq') nums=V46_weightedCombo(model.numW,model.pairW,rng,'freq');
+    else nums=V46_weightedCombo(model.numW,model.pairW,rng,'pair');
+
+    if(strategy==='v45core'){
+      // Generate a small deterministic candidate pool and keep the best pure/past-only score.
+      let best=nums,bestScore=V46_structuralScore(nums,model,past);
+      for(let k=0;k<45;k++){
+        const c=(rng()<0.75)?V46_weightedCombo(model.numW,model.pairW,rng,'pair'):V46_randomCombo(rng);
+        const z=V46_structuralScore(c,model,past);
+        if(z>bestScore){ best=c; bestScore=z; }
+      }
+      nums=best;
+    }
+    const key=keyOf(nums);
+    if(!seen.has(key)){ seen.add(key); out.push(nums); }
+    tries++;
+  }
+  return out;
+}
+function V46_hits(line,draw){
+  const s=new Set(draw.numbers||[]);
+  return line.reduce((a,n)=>a+(s.has(n)?1:0),0);
+}
+function V46_choose(n,k){
+  if(k<0||k>n) return 0;
+  if(k===0||k===n) return 1;
+  let r=1;
+  for(let i=1;i<=k;i++) r=r*(n-k+i)/i;
+  return Math.round(r);
+}
+function V46_emptyMetric(){ return {lines:0,g2:0,g3:0,g4:0,ambi:0,terni:0,quaterne:0,totalHits:0,blocks:[0,0,0,0],blockLines:[0,0,0,0]}; }
+function V46_addMetric(m,h,block){
+  m.lines++; m.totalHits+=h;
+  if(h>=2){m.g2++;m.blocks[block]++;}
+  if(h>=3)m.g3++;
+  if(h>=4)m.g4++;
+  m.ambi+=V46_choose(h,2); m.terni+=V46_choose(h,3); m.quaterne+=V46_choose(h,4);
+  m.blockLines[block]++;
+}
+function V46_mean(a){ return a.length?a.reduce((x,y)=>x+y,0)/a.length:0; }
+function V46_sd(a){
+  if(a.length<2) return 0;
+  const m=V46_mean(a); return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1));
+}
+function V46_sortedDraws(){
+  return (state.draws||[]).filter(d=>Array.isArray(d.numbers)&&validSix(d.numbers)&&d.date).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+}
+async function V46_runBacktest(){
+  const btn=byId('btnV46Backtest'); if(btn){btn.disabled=true;btn.textContent='Calcolo...';}
+  try{
+    const all=V46_sortedDraws();
+    const minTrain=Math.max(30,Math.min(1000,parseInt(byId('v46MinTrain').value,10)||180));
+    const lines=Math.max(1,Math.min(20,parseInt(byId('v46Lines').value,10)||5));
+    const mc=Math.max(30,Math.min(500,parseInt(byId('v46Mc').value,10)||120));
+    const win=byId('v46TestWindow').value;
+    if(all.length<=minTrain) throw new Error('Storico insufficiente: servono più di '+minTrain+' estrazioni.');
+    let targets=all.slice(minTrain);
+    if(win!=='all') targets=targets.slice(-Math.min(parseInt(win,10),targets.length));
+    const firstTargetIndex=all.indexOf(targets[0]);
+    const metrics={}; V46_STRATEGIES.forEach(s=>metrics[s.id]=V46_emptyMetric());
+
+    for(let ti=0;ti<targets.length;ti++){
+      const targetIndex=firstTargetIndex+ti;
+      const target=all[targetIndex];
+      const past=all.slice(0,targetIndex); // STRICTLY BEFORE TARGET
+      const block=Math.min(3,Math.floor(ti*4/Math.max(1,targets.length)));
+      for(const st of V46_STRATEGIES){
+        const seed=V46_hash('v46|'+st.id+'|'+target.date+'|'+lines);
+        const rows=V46_generate(st.id,past,lines,seed);
+        rows.forEach(line=>V46_addMetric(metrics[st.id],V46_hits(line,target),block));
+      }
+      if(ti%8===0){
+        byId('v46Msg').textContent='Walk-forward '+(ti+1)+' / '+targets.length+' · ogni target vede solo il passato.';
+        await new Promise(r=>setTimeout(r,0));
+      }
+    }
+
+    // Monte Carlo baseline distribution: same number of target draws and lines.
+    const randG2=[];
+    for(let rep=0;rep<mc;rep++){
+      let g2=0;
+      for(let ti=0;ti<targets.length;ti++){
+        const target=targets[ti];
+        const rng=V46_rng(V46_hash('mc|'+rep+'|'+target.date));
+        for(let l=0;l<lines;l++) if(V46_hits(V46_randomCombo(rng),target)>=2) g2++;
+      }
+      randG2.push(g2);
+      if(rep%20===0) await new Promise(r=>setTimeout(r,0));
+    }
+    const randomMean=V46_mean(randG2), randomSd=V46_sd(randG2);
+
+    const report=V46_STRATEGIES.map(st=>{
+      const m=metrics[st.id];
+      const z=st.id==='random'?0:(randomSd>0?(m.g2-randomMean)/randomSd:0);
+      const baselineRate=randomMean/Math.max(1,m.lines);
+      const blockWins=m.blocks.reduce((a,x,i)=>a+((x/Math.max(1,m.blockLines[i]))>baselineRate?1:0),0);
+      const qualified=st.id!=='random' && z>=2 && blockWins>=3;
+      return {id:st.id,label:st.label,...m,meanHits:m.totalHits/Math.max(1,m.lines),z,blockWins,qualified};
+    });
+
+    V46_LAST_REPORT={createdAt:new Date().toISOString(),minTrain,tested:targets.length,lines,mc,randomMean,randomSd,report};
+    state.v46Backtest=V46_LAST_REPORT; saveState();
+    V46_renderReport();
+    byId('v46Msg').textContent='Completato: '+targets.length+' concorsi · '+lines+' righe/concorso · '+mc+' repliche random. Nessun target è stato usato nel proprio training.';
+    byId('v46Msg').className='msg ok';
+  }catch(e){
+    byId('v46Msg').textContent='Errore backtest: '+(e.message||e); byId('v46Msg').className='msg err';
+  }finally{ if(btn){btn.disabled=false;btn.textContent='Esegui walk-forward';} }
+}
+function V46_renderReport(){
+  const rep=V46_LAST_REPORT || state.v46Backtest;
+  const body=byId('v46Results'); if(!body) return;
+  if(!rep||!Array.isArray(rep.report)){ body.innerHTML='<tr><td colspan="12" class="muted">Esegui il backtest per misurare il motore.</td></tr>'; return; }
+  body.innerHTML=rep.report.map(r=>{
+    const esito=r.id==='random'?'Baseline':(r.qualified?'Segnale da approfondire':'Non validato');
+    return '<tr><td><strong>'+r.label+'</strong></td><td>'+r.lines+'</td><td>'+r.g2+'</td><td>'+r.g3+'</td><td>'+r.g4+'</td><td>'+r.ambi+'</td><td>'+r.terni+'</td><td>'+r.quaterne+'</td><td>'+r.meanHits.toFixed(4)+'</td><td>'+r.z.toFixed(2)+'</td><td>'+r.blockWins+'/4</td><td>'+(r.qualified?'<span class="ok">'+esito+'</span>':(r.id==='random'?esito:'<span class="warn">'+esito+'</span>'))+'</td></tr>';
+  }).join('');
+}
+function V46_exportCSV(){
+  const rep=V46_LAST_REPORT || state.v46Backtest;
+  if(!rep||!Array.isArray(rep.report)) return msg('v46Msg','Prima esegui il walk-forward.',true);
+  const rows=[['strategia','linee','ge2','ge3','ge4','ambi','terni','quaterne','media_hit','z_vs_random','blocchi_vinti','qualificata'].join(';')];
+  rep.report.forEach(r=>rows.push([r.label,r.lines,r.g2,r.g3,r.g4,r.ambi,r.terni,r.quaterne,r.meanHits.toFixed(6),r.z.toFixed(4),r.blockWins,r.qualified?'SI':'NO'].join(';')));
+  const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='super6plus_v46_walkforward.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  const b=byId('btnV46Backtest'); if(b) b.onclick=V46_runBacktest;
+  const e=byId('btnV46Export'); if(e) e.onclick=V46_exportCSV;
+  V46_LAST_REPORT=state.v46Backtest||null; V46_renderReport();
+});
 
 </script>
 <!-- Firebase live sync riattivabile in v43 Cloud Sync con Firebase Realtime Database. -->
