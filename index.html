@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super6plus v50 — Auto Sync</title>
+  <title>Super6plus v51 — Auto Sync</title>
   <style>
     :root{
       --bg:#07142d; --panel:#0d1f43; --panel2:#13284f; --line:#243b68;
@@ -199,7 +199,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Super6plus v50 — Auto Sync</h1>
+  <h1>Super6plus v51 — Auto Sync</h1>
   <p class="muted">Super6plus analizza automaticamente lo storico, verifica internamente i modelli e produce direttamente le sestine finali. Nessun parametro statistico da configurare e nessun test da eseguire manualmente.</p>
 
   <div class="card" style="margin-top:16px;background:#081730;border-color:#355785">
@@ -312,6 +312,7 @@
     <div class="row" style="margin-top:12px">
       <button class="btn-blue" id="btnGenerate">Genera sestine</button>
       <button class="btn-yellow" id="btnMarkPlayed">Segna come giocate</button>
+      <button class="btn-red" id="btnClearGenerated">Cancella sestine</button>
       <button class="btn-grey" id="btnUseNext">Prossimo concorso</button>
       <button class="btn-grey" id="btnToggleSystem">Crea sistema avanzato</button>
     </div>
@@ -3099,11 +3100,27 @@ function render(){
     const div=document.createElement('div');
     div.className='item';
     div.innerHTML=
-      '<div class="small muted">Sestina '+(idx+1)+'</div>'+
-      '<div class="mono" style="margin-top:7px;font-size:27px;font-weight:800;letter-spacing:.5px">'+
-      g.numbers.join('  -  ')+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+        '<div style="min-width:0">'+
+          '<div class="small muted">Sestina '+(idx+1)+'</div>'+
+          '<div class="mono" style="margin-top:7px;font-size:27px;font-weight:800;letter-spacing:.5px">'+
+            g.numbers.join('  -  ')+
+          '</div>'+
+        '</div>'+
+        '<button class="btn-red" data-remove-generated="'+idx+'" title="Elimina questa sestina" style="flex:0 0 auto;width:auto;padding:8px 12px">✕</button>'+
       '</div>';
     gen.appendChild(div);
+  });
+
+  gen.querySelectorAll('[data-remove-generated]').forEach(btn=>{
+    btn.onclick=()=>{
+      const idx=Number(btn.dataset.removeGenerated);
+      if(!Number.isInteger(idx) || idx<0 || idx>=state.generated.length) return;
+      state.generated.splice(idx,1);
+      saveState();
+      render();
+      msg('msgGen','Sestina eliminata.',false);
+    };
   });
 
   const pl=byId('playedList');
@@ -3199,6 +3216,18 @@ function toggleSystemBox(){
   if(opening) box.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+function clearGeneratedSestine(){
+  if(!Array.isArray(state.generated) || !state.generated.length){
+    return msg('msgGen','Non ci sono sestine da cancellare.',false);
+  }
+  if(!confirm('Vuoi cancellare tutte le sestine pronte? Le giocate già salvate non verranno toccate.')) return;
+  state.generated=[];
+  state.absoluteReport=null;
+  saveState();
+  render();
+  msg('msgGen','Sestine cancellate.',false);
+}
+
 function bind(){
   const archiveSearch=byId('drawArchiveSearch');
   const btnArchiveSearch=byId('btnSearchDrawArchive');
@@ -3227,6 +3256,7 @@ function bind(){
   byId('btnClearManualPlays').onclick=()=>{ byId('manualPlaysBox').value=''; msg('msgManualPlays','Riquadro pulito.',false); };
   byId('btnGenerate').onclick=generate;
   byId('btnMarkPlayed').onclick=markPlayed;
+  if(byId('btnClearGenerated')) byId('btnClearGenerated').onclick=clearGeneratedSestine;
   if(byId('btnToggleSystem')) byId('btnToggleSystem').onclick=toggleSystemBox;
   if(byId('btnExportArchivedHits')) byId('btnExportArchivedHits').onclick=exportArchivedHitsCSV;
   if(byId('btnRefreshCalendar')) byId('btnRefreshCalendar').onclick=()=>{ renderCalendarDashboard(); msg('msgPattern','Calendario aggiornato.'); };
