@@ -346,7 +346,7 @@
     <div class="sep"></div>
     <div id="generatedList" class="list"></div>
     <div class="card" style="margin-top:16px;background:#071733" id="v51AuditPanel">
-      <h3>Diagnostica Autopilot — 5 modelli · generazione variabile</h3>
+      <h3>Diagnostica Autopilot — scelta statistica · random solo controllo</h3>
       <p class="small muted">Strategia scelta, confronti storici e risultati delle generazioni precedenti. I concorsi non ancora estratti restano in attesa.</p>
       <div id="v51AuditContent" class="small">Nessuna diagnosi disponibile.</div>
     </div>
@@ -4209,7 +4209,7 @@ function V46_generate(strategy,past,lines,seed){
       // Generate a small deterministic candidate pool and keep the best pure/past-only score.
       let best=nums,bestScore=V46_structuralScore(nums,model,past);
       for(let k=0;k<45;k++){
-        const c=(rng()<0.75)?V46_weightedCombo(model.numW,model.pairW,rng,'pair'):V46_randomCombo(rng);
+        const c=(rng()<0.75)?V46_weightedCombo(model.numW,model.pairW,rng,'pair'):V46_weightedCombo(model.numW,model.pairW,rng,'freq');
         const z=V46_structuralScore(c,model,past);
         if(z>bestScore){ best=c; bestScore=z; }
       }
@@ -4357,7 +4357,7 @@ async function V47_validateSilently(){
   if(all.length<=minTrain+20){
     return {
       signature:V47_historySignature(),
-      strategy:'random',
+      strategy:'freq',
       createdAt:new Date().toISOString(),
       reason:'storico_insufficiente',
       report:[]
@@ -4424,7 +4424,14 @@ async function V47_validateSilently(){
 
   // Se nessun modello dimostra un vantaggio fuori campione,
   // l'Autopilot usa la baseline casuale invece di fingere una previsione.
-  const strategy=qualified.length ? qualified[0].id : 'random';
+  // Scelta sempre motivata dallo storico: se nessun modello supera
+  // la soglia predittiva, seleziona il migliore tra i modelli statistici
+  // senza attribuirgli una validazione che non possiede.
+  const candidates=report.filter(r=>r.id!=='random');
+  const ranking=[...candidates].sort((a,b)=>
+    (b.blockWins-a.blockWins) || (b.z-a.z) || (b.g2-a.g2)
+  );
+  const strategy=qualified.length ? qualified[0].id : (ranking[0]?.id || 'freq');
 
   return {
     signature:V47_historySignature(),
@@ -4455,7 +4462,7 @@ async function V47_getValidatedStrategy(){
   validation.modelIds=modelIds;
   state.v47AutoValidation=validation;
   saveState();
-  return validation.strategy || 'random';
+  return validation.strategy || 'freq';
 }
 
 // Override finale: un solo pulsante, nessun laboratorio visibile.
@@ -4494,7 +4501,8 @@ generate = async function(){
       const rng=V46_rng(seed^0x9e3779b9);
       const seen=new Set(rows.map(keyOf));
       while(rows.length<wanted){
-        const x=V46_randomCombo(rng);
+        const model=V46_trainModel(past);
+        const x=V46_weightedCombo(model.numW,model.pairW,rng,'freq');
         const k=keyOf(x);
         if(!seen.has(k)){ seen.add(k); rows.push(x); }
       }
