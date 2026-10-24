@@ -4422,8 +4422,6 @@ async function V47_validateSilently(){
     .filter(r=>r.qualified)
     .sort((a,b)=>b.z-a.z);
 
-  // Se nessun modello dimostra un vantaggio fuori campione,
-  // l'Autopilot usa la baseline casuale invece di fingere una previsione.
   // Scelta sempre motivata dallo storico: se nessun modello supera
   // la soglia predittiva, seleziona il migliore tra i modelli statistici
   // senza attribuirgli una validazione che non possiede.
@@ -4451,8 +4449,10 @@ async function V47_getValidatedStrategy(){
   const sig=V47_historySignature();
   const cached=state.v47AutoValidation;
   const modelIds=V46_STRATEGIES.map(m=>m.id).join('|');
+  const selectionPolicy='statistical-only-v2';
   if(cached && cached.signature===sig && cached.strategy &&
-     cached.modelIds===modelIds && Array.isArray(cached.report) &&
+     cached.modelIds===modelIds && cached.selectionPolicy===selectionPolicy &&
+     cached.strategy!=='random' && Array.isArray(cached.report) &&
      cached.report.length===V46_STRATEGIES.length){
     return cached.strategy;
   }
@@ -4460,6 +4460,7 @@ async function V47_getValidatedStrategy(){
   msg('msgGen','Analisi automatica in corso…',false);
   const validation=await V47_validateSilently();
   validation.modelIds=modelIds;
+  validation.selectionPolicy=selectionPolicy;
   state.v47AutoValidation=validation;
   saveState();
   return validation.strategy || 'freq';
