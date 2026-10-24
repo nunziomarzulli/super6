@@ -345,6 +345,11 @@
 
     <div class="sep"></div>
     <div id="generatedList" class="list"></div>
+    <div class="card" style="margin-top:16px;background:#071733" id="v51AuditPanel">
+      <h3>Diagnostica Autopilot — apprendimento verificabile</h3>
+      <p class="small muted">Strategia scelta, confronti storici e risultati delle generazioni precedenti. I concorsi non ancora estratti restano in attesa.</p>
+      <div id="v51AuditContent" class="small">Nessuna diagnosi disponibile.</div>
+    </div>
   </div>
 
 
@@ -4455,6 +4460,19 @@ generate = async function(){
       }
     }
 
+    // Registro immutabile delle previsioni: permette la verifica successiva.
+    // Non registra come "previsione" sestine generate per concorsi già estratti.
+    const alreadyDrawn=past.some(d=>String(d.contest)===contest || (date && d.date===date));
+    if(!alreadyDrawn){
+      if(!Array.isArray(state.v51PredictionAudit)) state.v51PredictionAudit=[];
+      state.v51PredictionAudit.push({
+        contest,date,createdAt:new Date().toISOString(),
+        historySignature:V47_historySignature(),strategy,
+        numbers:rows.slice(0,wanted).map(r=>[...r]),
+        validation:JSON.parse(JSON.stringify(state.v47AutoValidation||null))
+      });
+      state.v51PredictionAudit=state.v51PredictionAudit.slice(-300);
+    }
     state.generated=rows.slice(0,wanted).map(numbers=>({
       numbers,
       jolly:null,
@@ -4481,6 +4499,57 @@ generate = async function(){
 // Eventuali report v46 già salvati restano nel backup per compatibilità.
 
 
+
+/* =========================================================
+   SUPER6PLUS v51 - AUDIT DELLE PREVISIONI
+   Non cambia la scelta delle sestine; rende controllabile il motore.
+   ========================================================= */
+function V51_renderAudit(){
+  const el=document.getElementById('v51AuditContent');
+  if(!el) return;
+  const validation=state.v47AutoValidation;
+  const audits=Array.isArray(state.v51PredictionAudit)?state.v51PredictionAudit:[];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let html='';
+  if(validation){
+    html+='<p><b>Strategia selezionata:</b> '+esc(validation.strategy||'random')+
+      ' · <b>Concorsi testati:</b> '+esc(validation.tested||0)+
+      ' · <b>Data verifica:</b> '+esc(validation.createdAt||'-')+'</p>';
+    if(Array.isArray(validation.report)){
+      html+='<div style="overflow-x:auto"><table class="pattern-table"><thead><tr><th>Modello</th><th>Ambi o più</th><th>Terni o più</th><th>Z</th><th>Blocchi</th><th>Validato</th></tr></thead><tbody>';
+      for(const r of validation.report){
+        html+='<tr><td>'+esc(r.label||r.id)+'</td><td>'+esc(r.g2)+'</td><td>'+esc(r.g3)+'</td><td>'+esc(Number(r.z||0).toFixed(2))+'</td><td>'+esc(r.blockWins)+'/4</td><td>'+(r.qualified?'Sì':'No')+'</td></tr>';
+      }
+      html+='</tbody></table></div>';
+    }
+  }else html+='<p>Nessuna validazione registrata: genera una sestina per avviarla.</p>';
+  let checked=0,waiting=0,ambos=0,ternos=0;
+  const recent=[];
+  for(const a of audits){
+    const draw=(state.draws||[]).find(d=>String(d.contest)===String(a.contest) && (!a.date || !d.date || a.date===d.date));
+    if(!draw){waiting++;continue;}
+    checked++;
+    const hitCounts=(a.numbers||[]).map(row=>row.filter(n=>draw.numbers.includes(n)).length);
+    ambos+=hitCounts.filter(n=>n>=2).length;
+    ternos+=hitCounts.filter(n=>n>=3).length;
+    recent.push({contest:a.contest,strategy:a.strategy,hits:hitCounts.join(', ')});
+  }
+  html+='<p><b>Previsioni registrate:</b> '+audits.length+' · <b>Verificate:</b> '+checked+
+    ' · <b>In attesa:</b> '+waiting+' · <b>Sestine con almeno 2:</b> '+ambos+
+    ' · <b>Con almeno 3:</b> '+ternos+'</p>';
+  if(recent.length){
+    html+='<p><b>Ultimi confronti:</b></p>';
+    for(const r of recent.slice(-8).reverse())html+='<p>Concorso '+esc(r.contest)+' · '+esc(r.strategy)+' · numeri presi per sestina: '+esc(r.hits)+'</p>';
+  }
+  html+='<p class="muted">Nota: i test sullo storico selezionano il modello, ma non provano una capacità predittiva. Le previsioni registrate prima del risultato sono la verifica indipendente.</p>';
+  el.innerHTML=html;
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  V51_renderAudit();
+  const observer=new MutationObserver(()=>V51_renderAudit());
+  const target=document.getElementById('generatedList');
+  if(target)observer.observe(target,{childList:true});
+});
 
 /* =========================================================
    SUPER6PLUS v48 - IMPORT AUTOMATICO NUOVA ESTRAZIONE
