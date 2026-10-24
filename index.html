@@ -346,7 +346,7 @@
     <div class="sep"></div>
     <div id="generatedList" class="list"></div>
     <div class="card" style="margin-top:16px;background:#071733" id="v51AuditPanel">
-      <h3>Diagnostica Autopilot — apprendimento verificabile</h3>
+      <h3>Diagnostica Autopilot — 5 modelli · cache corretta</h3>
       <p class="small muted">Strategia scelta, confronti storici e risultati delle generazioni precedenti. I concorsi non ancora estratti restano in attesa.</p>
       <div id="v51AuditContent" class="small">Nessuna diagnosi disponibile.</div>
     </div>
@@ -4443,12 +4443,16 @@ async function V47_validateSilently(){
 async function V47_getValidatedStrategy(){
   const sig=V47_historySignature();
   const cached=state.v47AutoValidation;
-  if(cached && cached.signature===sig && cached.strategy){
+  const modelIds=V46_STRATEGIES.map(m=>m.id).join('|');
+  if(cached && cached.signature===sig && cached.strategy &&
+     cached.modelIds===modelIds && Array.isArray(cached.report) &&
+     cached.report.length===V46_STRATEGIES.length){
     return cached.strategy;
   }
 
   msg('msgGen','Analisi automatica in corso…',false);
   const validation=await V47_validateSilently();
+  validation.modelIds=modelIds;
   state.v47AutoValidation=validation;
   saveState();
   return validation.strategy || 'random';
