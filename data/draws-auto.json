@@ -1,7 +1,21 @@
 {
   "source": "https://www.superenalotto.it/archivio-estrazioni",
-  "updatedAt": "2026-11-20T01:21:39.264618+00:00",
+  "updatedAt": "2026-11-21T00:53:09.333175+00:00",
   "draws": [
+    {
+      "contest": "186",
+      "date": "2026-11-20",
+      "numbers": [
+        38,
+        50,
+        69,
+        80,
+        88,
+        89
+      ],
+      "jolly": 46,
+      "superstar": 48
+    },
     {
       "contest": "185",
       "date": "2026-11-19",
